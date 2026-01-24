@@ -165,14 +165,20 @@ const PropertyHeaderForm: React.FC<PropertyHeaderFormProps> = ({
             <Typography variant="h6">
               Свойства шапки ({headerItems.length})
             </Typography>
-            {onAddItem && (
+            {onAddItem && header?.id ? (
               <Button 
-                variant="outlined" 
+                variant="contained" 
                 size="small"
-                onClick={() => header && onAddItem(header)}
+                onClick={() => onAddItem(header)}
+                sx={{ minWidth: 150 }}
               >
                 Добавить свойство
               </Button>
+            ) : (
+              <Typography color="text.secondary" variant="body2">
+                {!onAddItem && 'Функция добавления отсутствует'}
+                {!header?.id && 'Шапка не выбрана'}
+              </Typography>
             )}
           </Box>
           
@@ -203,7 +209,7 @@ const PropertyHeaderForm: React.FC<PropertyHeaderFormProps> = ({
                   }
                 >
                   <ListItemText
-                    primary={`Свойство ID: ${item.propertyId}`}
+                    primary={`Свойство #${item.propertyId}`}
                     secondary={`Значение: ${item.value}`}
                   />
                 </ListItem>

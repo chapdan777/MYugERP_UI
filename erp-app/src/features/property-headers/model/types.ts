@@ -16,12 +16,12 @@ export interface PropertyHeader {
 }
 
 /**
- * Интерфейс элемента шапки свойств
+ * Интерфейс элемента шапки свойств (только связь со свойством, без значения)
  */
 export interface PropertyHeaderItem {
   headerId: number;
   propertyId: number;
-  value: string;
+  sortOrder?: number;
   createdAt: string;
 }
 
@@ -43,9 +43,8 @@ export interface UpdatePropertyHeaderInput {
 }
 
 /**
- * Интерфейс для добавления элемента в шапку
+ * Интерфейс для добавления элемента в шапку (только свойство)
  */
 export interface AddItemToHeaderInput {
   propertyId: number;
-  value: string;
 }

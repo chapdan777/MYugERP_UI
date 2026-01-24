@@ -211,3 +211,21 @@ export const useAddItemToHeader = () => {
     },
   };
 };
+
+/**
+ * Удаление элемента из шапки
+ */
+export const useRemoveItemFromHeader = () => {
+  return {
+    removeItemFromHeader: async (headerId: number, propertyId: number) => {
+      try {
+        await apiClient.delete(`${PROPERTY_HEADERS_API_URL}/${headerId}/items/${propertyId}`);
+        // Обновляем кэш SWR
+        await mutate(`${PROPERTY_HEADERS_API_URL}/${headerId}/items`);
+      } catch (error) {
+        console.error('Ошибка при удалении элемента из шапки:', error);
+        throw error;
+      }
+    },
+  };
+};

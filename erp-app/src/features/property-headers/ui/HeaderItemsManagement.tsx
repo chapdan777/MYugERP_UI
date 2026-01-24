@@ -36,7 +36,8 @@ import {
 import type { PropertyHeader, PropertyHeaderItem } from '../model/types';
 import { 
   useGetHeaderItems, 
-  useAddItemToHeader
+  useAddItemToHeader,
+  useRemoveItemFromHeader
 } from '../model/hooks';
 import { useProperties } from '../../property-management/model/property.hooks';
 
@@ -52,7 +53,6 @@ const HeaderItemsManagement: React.FC<HeaderItemsManagementProps> = ({
   onClose,
 }) => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | ''>('');
-  const [itemValue, setItemValue] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   // Получаем элементы текущей шапки
@@ -63,40 +63,45 @@ const HeaderItemsManagement: React.FC<HeaderItemsManagementProps> = ({
   
   // Хук для добавления элементов
   const { addItemToHeader } = useAddItemToHeader();
+  
+  // Хук для удаления элементов
+  const { removeItemFromHeader } = useRemoveItemFromHeader();
 
   // Сброс формы при закрытии
   useEffect(() => {
     if (!open) {
       setSelectedPropertyId('');
-      setItemValue('');
       setError(null);
     }
   }, [open]);
 
   const handleAddItem = async () => {
-    if (!selectedPropertyId || !itemValue.trim()) {
-      setError('Выберите свойство и введите значение');
+    if (!selectedPropertyId) {
+      setError('Выберите свойство');
       return;
     }
 
     try {
       await addItemToHeader(header.id, {
         propertyId: Number(selectedPropertyId),
-        value: itemValue.trim(),
       });
       
       // Сбрасываем форму
       setSelectedPropertyId('');
-      setItemValue('');
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Ошибка при добавлении элемента');
     }
   };
 
-  const handleRemoveItem = (itemId: number) => {
-    // TODO: Реализовать удаление элемента из шапки
-    alert(`Функция удаления элемента ${itemId} будет реализована позже`);
+  const handleRemoveItem = async (propertyId: number) => {
+    if (window.confirm('Вы уверены, что хотите удалить это свойство из шапки?')) {
+      try {
+        await removeItemFromHeader(header.id, propertyId);
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Ошибка при удалении элемента');
+      }
+    }
   };
 
   // Получаем имя свойства по ID
@@ -160,19 +165,11 @@ const HeaderItemsManagement: React.FC<HeaderItemsManagementProps> = ({
               </Select>
             </FormControl>
             
-            <TextField
-              label="Значение *"
-              value={itemValue}
-              onChange={(e) => setItemValue(e.target.value)}
-              disabled={isLoading}
-              sx={{ flex: 1 }}
-            />
-            
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleAddItem}
-              disabled={isLoading || !selectedPropertyId || !itemValue.trim()}
+              disabled={isLoading || !selectedPropertyId}
             >
               Добавить
             </Button>
@@ -204,14 +201,11 @@ const HeaderItemsManagement: React.FC<HeaderItemsManagementProps> = ({
                 >
                   <ListItemText
                     primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Chip 
-                          label={getPropertyName(item.propertyId)} 
-                          size="small" 
-                          color="primary" 
-                        />
-                        <Typography>{item.value}</Typography>
-                      </Box>
+                      <Chip 
+                        label={getPropertyName(item.propertyId)} 
+                        size="small" 
+                        color="primary" 
+                      />
                     }
                     secondary={`Добавлено: ${new Date(item.createdAt).toLocaleString('ru-RU')}`}
                   />

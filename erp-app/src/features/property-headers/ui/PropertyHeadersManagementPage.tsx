@@ -116,15 +116,12 @@ const PropertyHeadersManagementPage: React.FC = () => {
 
   const handleAddItem = (header: PropertyHeader) => {
     setManagingItemsHeader(header);
+    setErrorMessage(null);
+    setShowSuccess(false);
   };
 
   const handleCloseItemsManagement = () => {
     setManagingItemsHeader(null);
-  };
-
-  const handleRemoveItem = (headerId: number, propertyId: number) => {
-    // TODO: Реализовать удаление элемента из шапки
-    alert(`Функция удаления элемента ${propertyId} из шапки ${headerId} будет реализована позже`);
   };
 
   const handleCloseSnackbar = () => {
@@ -186,8 +183,6 @@ const PropertyHeadersManagementPage: React.FC = () => {
             header={editingHeader || undefined}
             onSubmit={handleFormSubmit}
             onCancel={handleCloseForm}
-            onAddItem={handleAddItem}
-            onRemoveItem={handleRemoveItem}
             loading={false}
             error={errorMessage}
             success={showSuccess}
