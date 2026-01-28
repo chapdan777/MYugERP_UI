@@ -1,0 +1,150 @@
+import React, { useState } from 'react';
+import { Box, Paper, Typography, Button, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Edit as EditIcon, Visibility as VisibilityIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon, Settings as SettingsIcon } from '@mui/icons-material';
+import { useSnackbar } from 'notistack';
+import { PropertiesTable } from './PropertiesTable';
+import { PropertyForm } from './PropertyForm';
+
+import { useProperties, useUpdateProperty, useActivateProperty, useDeactivateProperty } from '../model/property.hooks';
+import type { Property } from '../model/types';
+
+export const PropertiesManagementPage: React.FC = () => {
+  const { properties, isLoading, mutate } = useProperties();
+  const { updateProperty } = useUpdateProperty();
+  const { activateProperty } = useActivateProperty();
+  const { deactivateProperty } = useDeactivateProperty();
+  const { enqueueSnackbar } = useSnackbar();
+  
+  const [showForm, setShowForm] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error',
+  });
+
+  const handleEditProperty = (property: Property) => {
+    setEditingProperty(property);
+    setShowForm(true);
+  };
+
+  const handleShowPropertyValues = (property: Property) => {
+    setShowForm(false);
+    setEditingProperty(null);
+    
+    // Обновляем список свойств
+    if (mutate) {
+      await mutate();
+    }
+    
+    setSnackbar({
+      open: true,
+      message: editingProperty ? 'Свойство обновлено!' : 'Свойство создано!',
+      severity: 'success'
+    });
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false);
+    setEditingProperty(null);
+  };
+
+  const handleDeactivateProperty = async (property: Property) => {
+    try {
+      await deactivateProperty(property.id);
+      
+      // Обновляем список свойств
+      if (mutate) {
+        mutate();
+      }
+      
+      setSnackbar({
+        open: true,
+        message: `Свойство "${property.name}" деактивировано!`,
+        severity: 'success'
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Ошибка при деактивации свойства',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleActivateProperty = async (property: Property) => {
+    try {
+      await activateProperty(property.id);
+      
+      // Обновляем список свойств
+      if (mutate) {
+        mutate();
+      }
+      
+      setSnackbar({
+        open: true,
+        message: `Свойство "${property.name}" активировано!`,
+        severity: 'success'
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Ошибка при активации свойства',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleTogglePropertyStatus = async (property: Property) => {
+    if (property.isActive) {
+      await handleDeactivateProperty(property);
+    } else {
+      await handleActivateProperty(property);
+    }
+  };
+
+  const renderSnackbar = () => (
+    <div className="snackbar-container">
+      {snackbar.open && (
+        <div className={`snackbar snackbar--${snackbar.severity}`}>
+          {snackbar.message}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4">Управление дополнительными свойствами</Typography>
+          <Button 
+            variant="contained" 
+            onClick={() => setShowForm(true)}
+            sx={{ ml: 2 }}
+          >
+            Добавить свойство
+          </Button>
+        </Box>
+        
+        <PropertiesTable 
+          properties={properties} 
+          loading={isLoading}
+          onEdit={handleEditProperty}
+          onToggleStatus={handleTogglePropertyStatus}
+      </Paper>
+
+      {/* Форма редактирования свойства */}
+      {(showForm || editingProperty) && (
+        <PropertyForm
+          property={editingProperty || undefined}
+          onSuccess={handleSaveProperty}
+          onCancel={handleCancelForm}
+        />
+      )}
+
+
+      {renderSnackbar()}
+    </Box>
+  );
+};

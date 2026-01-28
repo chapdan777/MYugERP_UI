@@ -15,7 +15,7 @@ import { config } from '@shared/config';
 const createApiClient = (): AxiosInstance => {
   const client = axios.create({
     baseURL: config.apiUrl,
-    timeout: 10000,
+    timeout: 30000, // Увеличенный таймаут до 30 секунд для медленных соединений
     headers: {
       'Content-Type': 'application/json',
     },
@@ -37,7 +37,28 @@ const createApiClient = (): AxiosInstance => {
   client.interceptors.response.use(
     (response: AxiosResponse) => response,
     async (error: AxiosError) => {
-      const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+      // Логика повторных попыток для сетевых ошибок
+      const originalRequest = error.config as InternalAxiosRequestConfig & { 
+        _retry?: boolean; 
+        _retryCount?: number 
+      };
+      
+      // Повторяем только при сетевых ошибках (таймаут, ECONNABORTED) и не более 3 раз
+      if ((error.code === 'ECONNABORTED' || error.message?.includes('timeout')) 
+          && !originalRequest._retry && (originalRequest._retryCount || 0) < 3) {
+        
+        originalRequest._retry = true;
+        originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+        
+        console.log(`🔁 Повторная попытка запроса (${originalRequest._retryCount}/3)...`);
+        
+        // Задержка перед повторной попыткой (увеличивается с каждой попыткой)
+        await new Promise(resolve => setTimeout(resolve, 1000 * originalRequest._retryCount!));
+        
+        return client(originalRequest);
+      }
+
+      // Если получили 401 и это не повторный запрос
 
       // Если получили 401 и это не повторный запрос
       if (error.response?.status === 401 && !originalRequest._retry) {

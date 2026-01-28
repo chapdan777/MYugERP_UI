@@ -1,0 +1,607 @@
+/**
+ * @file Форма дополнительного свойства
+ * @description Компонент для создания и редактирования дополнительных свойств с поддержкой различных типов данных
+ */
+
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Button,
+  Typography,
+  Chip,
+  IconButton,
+  Paper,
+  Grid,
+  Switch,
+  FormControlLabel,
+  Divider,
+  Alert,
+  Snackbar,
+  CircularProgress,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Close as CloseIcon,
+  Info as InfoIcon,
+} from '@mui/icons-material';
+import type { Property, PropertyDataType, CreatePropertyInput, UpdatePropertyInput } from '../model/types';
+import { useCreateProperty, useUpdateProperty } from '../model/property.hooks';
+
+interface PropertyFormProps {
+  /** Свойство для редактирования (если undefined - режим создания) */
+  property?: Property;
+  /** Callback успешного сохранения */
+  onSuccess: (property: Property) => void | Promise<void>;
+  /** Callback отмены */
+  onCancel: () => void;
+  /** Состояние загрузки */
+  loading?: boolean;
+}
+
+/**
+ * Форма дополнительного свойства
+ */
+export const PropertyForm: React.FC<PropertyFormProps> = ({
+  property,
+  onSuccess,
+  onCancel,
+  loading = false,
+}) => {
+  // Временное логирование для отладки
+  console.log('📥 Props received:', { property, loading });
+  if (property) {
+    console.log('📋 Property details:', {
+      id: property.id,
+      code: property.code,
+      name: property.name,
+      dataType: property.dataType,
+      possibleValues: property.possibleValues,
+      possibleValuesType: typeof property.possibleValues,
+      possibleValuesLength: property.possibleValues?.length,
+      defaultValue: property.defaultValue,
+      isRequired: property.isRequired,
+      displayOrder: property.displayOrder
+    });
+    
+    // Подробное логирование значений
+    if (property.possibleValues) {
+      console.log('🔍 Possible values content:', property.possibleValues);
+      property.possibleValues.forEach((val, i) => {
+        console.log(`  [${i}]:`, val, `(type: ${typeof val})`);
+      });
+    }
+  }
+  const [formData, setFormData] = useState<Omit<CreatePropertyInput, 'targetEntity'> & { targetEntity?: 'product' | 'order' | 'user' }>({
+    code: property?.code || '',
+    name: property?.name || '',
+    description: property?.description || '',
+    dataType: property?.dataType || 'string',
+    possibleValues: property?.possibleValues || [],
+    defaultValue: property?.defaultValue || '',
+    isRequired: property?.isRequired || false,
+    isEditable: property?.isEditable ?? true,
+    isActive: property?.isActive ?? true,
+    displayOrder: property?.displayOrder || 0,
+    targetEntity: property?.targetEntity || 'product',
+  });
+
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error',
+  });
+
+  const [newPossibleValue, setNewPossibleValue] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dataTypeChanged, setDataTypeChanged] = useState(false);
+  const { createProperty } = useCreateProperty();
+  const { updateProperty } = useUpdateProperty();
+
+  // Автоматическая генерация кода из названия
+  useEffect(() => {
+    if (!property && formData.name) {
+      const generatedCode = formData.name
+        .toLowerCase()
+        .replace(/[^a-z0-9а-яё]/g, '_')
+        .replace(/_{2,}/g, '_')
+        .replace(/^_|_$/g, '');
+      setFormData(prev => ({ ...prev, code: generatedCode }));
+    }
+  }, [formData.name, property]);
+  
+  // Проверка изменения типа данных
+  useEffect(() => {
+    if (property && property.dataType && formData.dataType && property.dataType !== formData.dataType) {
+      setDataTypeChanged(true);
+    } else {
+      setDataTypeChanged(false);
+    }
+  }, [property, formData.dataType]);
+  
+  // Загрузка значений свойства при его наличии
+  useEffect(() => {
+    console.log('🔄 FormData updated:', {
+      possibleValues: formData.possibleValues,
+      possibleValuesLength: formData.possibleValues?.length
+    });
+    
+    if (formData.possibleValues && formData.possibleValues.length > 0) {
+      console.log('🔍 FormData values:', formData.possibleValues);
+      formData.possibleValues.forEach((val, i) => {
+        console.log(`  FD[${i}]:`, val, `(type: ${typeof val})`);
+      });
+    }
+  }, [formData]);
+
+  /**
+   * Обработчик изменения полей формы
+   */
+  const handleFieldChange = (field: keyof (CreatePropertyInput | UpdatePropertyInput), value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Если меняется тип данных, очищаем связанные поля
+    if (field === 'dataType') {
+      const updates: Partial<typeof formData> = {};
+      
+      // Для select типов показываем возможные значения
+      if (value === 'select' || value === 'multiselect') {
+        // Сохраняем существующие значения или создаем пустой массив
+        updates.possibleValues = formData.possibleValues && formData.possibleValues.length > 0 
+          ? formData.possibleValues 
+          : [];
+      } else {
+        updates.possibleValues = [];
+        updates.defaultValue = '';
+      }
+      
+      // Для boolean типов устанавливаем дефолтное значение
+      if (value === 'boolean') {
+        updates.defaultValue = 'false';
+      }
+      
+      setFormData(prev => ({ ...prev, ...updates }));
+    }
+  };
+
+  /**
+   * Добавление возможного значения
+   */
+  const addPossibleValue = () => {
+    if (newPossibleValue.trim() && formData.possibleValues) {
+      const trimmedValue = newPossibleValue.trim();
+      if (!formData.possibleValues.includes(trimmedValue)) {
+        handleFieldChange('possibleValues', [...formData.possibleValues, trimmedValue]);
+        setNewPossibleValue('');
+      } else {
+        showSnackbar('Значение уже существует', 'error');
+      }
+    }
+  };
+
+  /**
+   * Удаление возможного значения
+   */
+  const removePossibleValue = (index: number) => {
+    if (formData.possibleValues) {
+      const newValues = [...formData.possibleValues];
+      newValues.splice(index, 1);
+      handleFieldChange('possibleValues', newValues);
+      
+      // Если удаляем значение по умолчанию, очищаем его
+      if (formData.defaultValue === formData.possibleValues[index]) {
+        handleFieldChange('defaultValue', '');
+      }
+    }
+  };
+  
+  const handleAddPropertyValue = async () => {
+    if (!newValueText.trim() || !property?.id) return;
+    
+    try {
+      const newValue = await createPropertyValue({
+        propertyId: property.id,
+        value: newValueText.trim(),
+        priceModifierId: newValueModifier || null,
+      });
+      
+    if (property && dataTypeChanged) {
+      showSnackbar('Невозможно изменить тип данных у существующего свойства. Создайте новое свойство.', 'error');
+      return;
+    }
+    
+    // Валидация базовых полей
+    if (!formData.name.trim()) {
+      showSnackbar('Название обязательно', 'error');
+      return;
+    }
+    
+    if (!property && !formData.code.trim()) {
+      showSnackbar('Код обязателен при создании', 'error');
+      return;
+    }
+    
+    // Валидация для select типов
+    if ((formData.dataType === 'select' || formData.dataType === 'multiselect') &&
+        (!formData.possibleValues || formData.possibleValues.length === 0)) {
+      showSnackbar('Для типа выбора необходимо указать хотя бы одно возможное значение', 'error');
+      return;
+    }
+    
+    // Проверка дефолтного значения
+    if (formData.defaultValue && formData.possibleValues &&
+        !formData.possibleValues.includes(formData.defaultValue)) {
+      showSnackbar('Значение по умолчанию должно быть среди возможных значений', 'error');
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      
+      let propertyData: any;
+      
+      if (property) {
+        // Для обновления отправляем только разрешенные поля
+        propertyData = {
+          name: formData.name,
+          dataType: formData.dataType, // Добавляем изменение типа данных
+          possibleValues: formData.possibleValues?.filter(v => v.trim()),
+          defaultValue: formData.defaultValue,
+          isRequired: formData.isRequired,
+          displayOrder: formData.displayOrder
+        };
+        
+        // Удаляем undefined/null значения
+        Object.keys(propertyData).forEach(key => {
+          if (propertyData[key] === undefined || propertyData[key] === null) {
+            delete propertyData[key];
+          }
+        });
+      } else {
+        // Для создания отправляем все необходимые поля
+        propertyData = {
+          code: formData.code,
+          name: formData.name,
+          dataType: formData.dataType,
+          possibleValues: formData.possibleValues?.filter(v => v.trim()),
+          defaultValue: formData.defaultValue,
+          isRequired: formData.isRequired,
+          displayOrder: formData.displayOrder
+        };
+        
+        // Удаляем undefined/null значения
+        Object.keys(propertyData).forEach(key => {
+          if (propertyData[key] === undefined || propertyData[key] === null) {
+            delete propertyData[key];
+          }
+        });
+      }
+      
+      let resultProperty: Property;
+      
+      // Временное логирование для отладки
+      console.log('📤 Отправляемые данные:', propertyData);
+      console.log('🔄 Режим:', property ? 'обновление' : 'создание');
+      
+      if (property) {
+        // Режим редактирования
+        resultProperty = await updateProperty(property.id, propertyData);
+        showSnackbar(`Свойство "${resultProperty.name}" успешно обновлено!`, 'success');
+      } else {
+        // Режим создания
+        resultProperty = await createProperty(propertyData);
+        showSnackbar(`Свойство "${resultProperty.name}" успешно создано!`, 'success');
+      }
+      
+      // После успешного создания/обновления свойства, обновляем значения
+      if (resultProperty.id) {
+        // Если есть возможные значения, преобразуем их в новую систему
+        if (formData.possibleValues && formData.possibleValues.length > 0) {
+          // TODO: Здесь должна быть логика создания значений свойства через API
+          console.log('Нужно создать значения для свойства:', resultProperty.id, formData.possibleValues);
+        }
+      }
+      
+      await onSuccess(resultProperty);
+    } catch (error: any) {
+      console.error('Ошибка при сохранении свойства:', error);
+      showSnackbar(`Ошибка при сохранении: ${error.response?.data?.message || error.message}`, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Показ уведомления
+   */
+  const showSnackbar = (message: string, severity: 'success' | 'error') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  /**
+   * Закрытие уведомления
+   */
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  /**
+   * Получение описания типа данных
+   */
+  const getDataTypeDescription = (type: PropertyDataType) => {
+    const descriptions: Record<PropertyDataType, string> = {
+      string: 'Текстовое поле для ввода произвольного текста',
+      number: 'Числовое поле для ввода чисел',
+      boolean: 'Переключатель да/нет',
+      select: 'Выпадающий список с предопределенными значениями',
+      multiselect: 'Множественный выбор из списка значений',
+      date: 'Поле для выбора даты',
+    };
+    return descriptions[type];
+  };
+
+  return (
+    <>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          {property ? 'Редактировать свойство' : 'Создать новое свойство'}
+        </Typography>
+        
+        <form onSubmit={handleSubmit}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* Основная информация */}
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>
+                Основная информация
+              </Typography>
+                      
+              {/* Предупреждение о невозможности изменения типа данных */}
+              {dataTypeChanged && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  <strong>Внимание:</strong> Тип данных нельзя изменить у существующего свойства.
+                  <br />
+                  Чтобы изменить тип, создайте новое свойство и деактивируйте это.
+                </Alert>
+              )}
+            </Box>
+            
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+              <TextField
+                fullWidth
+                label="Название *"
+                value={formData.name}
+                onChange={(e) => handleFieldChange('name', e.target.value)}
+                helperText="Отображаемое имя свойства"
+                required
+              />
+              
+              <TextField
+                fullWidth
+                label="Код *"
+                value={formData.code}
+                onChange={(e) => handleFieldChange('code', e.target.value)}
+                helperText="Уникальный идентификатор (латинские буквы, цифры, подчеркивание)"
+                required
+              />
+            </Box>
+            
+            <TextField
+              fullWidth
+              label="Описание"
+              multiline
+              rows={2}
+              value={formData.description}
+              onChange={(e) => handleFieldChange('description', e.target.value)}
+              helperText="Краткое описание назначения свойства"
+            />
+            
+            {/* Тип данных и параметры */}
+            <Box>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle1" gutterBottom>
+                Тип данных и параметры
+              </Typography>
+            </Box>
+            
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+              <Box>
+                <FormControl fullWidth>
+                  <InputLabel>Тип данных *</InputLabel>
+                  <Select
+                    value={formData.dataType}
+                    label="Тип данных *"
+                    onChange={(e) => handleFieldChange('dataType', e.target.value as PropertyDataType)}
+                  >
+                    <MenuItem value="string">Текст</MenuItem>
+                    <MenuItem value="number">Число</MenuItem>
+                    <MenuItem value="boolean">Логический</MenuItem>
+                    <MenuItem value="select">Выбор</MenuItem>
+                    <MenuItem value="multiselect">Множественный выбор</MenuItem>
+                    <MenuItem value="date">Дата</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <Box display="flex" alignItems="center" mt={1}>
+                  <InfoIcon color="info" fontSize="small" sx={{ mr: 1 }} />
+                  <Typography variant="caption" color="textSecondary">
+                    {getDataTypeDescription(formData.dataType || 'string')}
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <TextField
+                fullWidth
+                label="Порядок отображения"
+                type="number"
+                value={formData.displayOrder}
+                onChange={(e) => handleFieldChange('displayOrder', parseInt(e.target.value) || 0)}
+                InputProps={{ inputProps: { min: 0 } }}
+                helperText="Чем меньше число, тем выше в списке"
+              />
+            </Box>
+            
+            {/* Параметры типа данных */}
+            {(formData.dataType === 'select' || formData.dataType === 'multiselect') && (
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  Возможные значения
+                </Typography>
+                
+                {/* Список возможных значений */}
+                {formData.possibleValues && formData.possibleValues.length > 0 && (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                    {formData.possibleValues.map((value, index) => (
+                      <Chip
+                        key={index}
+                        label={value}
+                        onDelete={() => removePossibleValue(index)}
+                        deleteIcon={<CloseIcon />}
+                      />
+                    ))}
+                  </Box>
+                )}
+                
+                {/* Добавление нового значения */}
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <TextField
+                    label="Новое значение"
+                    value={newPossibleValue}
+                    onChange={(e) => setNewPossibleValue(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPossibleValue())}
+                    size="small"
+                  />
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={addPossibleValue}
+                    size="small"
+                  >
+                    Добавить
+                  </Button>
+                </Box>
+                
+
+                
+                <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                  Нажмите Enter или кнопку "Добавить" для добавления значения
+                </Typography>
+              </Box>
+            )}
+            
+            {/* Значение по умолчанию и флаги */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+              <Box>
+                {(formData.dataType === 'select' || formData.dataType === 'multiselect') && formData.possibleValues && formData.possibleValues.length > 0 ? (
+                  <FormControl fullWidth>
+                    <InputLabel>Значение по умолчанию</InputLabel>
+                    <Select
+                      value={formData.defaultValue || ''}
+                      label="Значение по умолчанию"
+                      onChange={(e) => handleFieldChange('defaultValue', e.target.value)}
+                    >
+                      <MenuItem value="">Не выбрано</MenuItem>
+                      {formData.possibleValues.map((value) => (
+                        <MenuItem key={value} value={value}>
+                          {value}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                ) : formData.dataType === 'boolean' ? (
+                  <FormControl fullWidth>
+                    <InputLabel>Значение по умолчанию</InputLabel>
+                    <Select
+                      value={formData.defaultValue || 'false'}
+                      label="Значение по умолчанию"
+                      onChange={(e) => handleFieldChange('defaultValue', e.target.value)}
+                    >
+                      <MenuItem value="true">Да</MenuItem>
+                      <MenuItem value="false">Нет</MenuItem>
+                    </Select>
+                  </FormControl>
+                ) : (
+                  <TextField
+                    fullWidth
+                    label="Значение по умолчанию"
+                    value={formData.defaultValue}
+                    onChange={(e) => handleFieldChange('defaultValue', e.target.value)}
+                  />
+                )}
+              </Box>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.isRequired}
+                      onChange={(e) => handleFieldChange('isRequired', e.target.checked)}
+                    />
+                  }
+                  label="Обязательное свойство"
+                />
+                
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.isEditable}
+                      onChange={(e) => handleFieldChange('isEditable', e.target.checked)}
+                    />
+                  }
+                  label="Редактируемое"
+                />
+                
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.isActive}
+                      onChange={(e) => handleFieldChange('isActive', e.target.checked)}
+                    />
+                  }
+                  label="Активно"
+                />
+              </Box>
+            </Box>
+          </Box>
+          
+          {/* Кнопки действий */}
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 4 }}>
+            <Button
+              variant="outlined"
+              onClick={onCancel}
+              disabled={loading}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="contained"
+              type="submit"
+              disabled={isSubmitting || loading}
+            >
+              {isSubmitting ? 'Сохранение...' : (property ? 'Сохранить' : 'Создать')}
+            </Button>
+          </Box>
+        </form>
+      </Paper>
+      
+      {/* Snackbar для уведомлений */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </>
+  );
+};

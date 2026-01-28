@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-// Конфигурация Vite для ERP-приложения
+// Конфигурация Vite для ERP-приложения (Updated)
 export default defineConfig({
   plugins: [react()],
   resolve: {
