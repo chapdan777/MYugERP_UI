@@ -26,18 +26,23 @@ import {
   Alert,
   CircularProgress,
   TextField,
+  Tooltip,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
+  ArrowUpward as ArrowUpIcon,
+  ArrowDownward as ArrowDownIcon,
+  DragIndicator as DragIcon,
 } from '@mui/icons-material';
 
 import type { PropertyHeader } from '../model/types';
 import {
   useGetHeaderItems,
   useAddItemToHeader,
-  useRemoveItemFromHeader
+  useRemoveItemFromHeader,
+  useUpdateItemInHeader,
 } from '../model/hooks';
 import { useProperties } from '../../manage-properties/model/property.hooks';
 
@@ -62,11 +67,15 @@ const HeaderItemsManagement: React.FC<HeaderItemsManagementProps> = ({
   // Получаем доступные свойства
   const { properties, isLoading: propertiesLoading } = useProperties();
 
-  // Хук для добавления элементов
+  // Хуки для операций
   const { addItemToHeader } = useAddItemToHeader();
-
-  // Хук для удаления элементов
   const { removeItemFromHeader } = useRemoveItemFromHeader();
+  const { updateItemInHeader } = useUpdateItemInHeader();
+
+  // Сортированный список элементов
+  const sortedItems = [...headerItems].sort(
+    (a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)
+  );
 
   // Сброс формы при закрытии
   useEffect(() => {
@@ -108,6 +117,34 @@ const HeaderItemsManagement: React.FC<HeaderItemsManagementProps> = ({
     }
   };
 
+  /**
+   * Перемещение элемента вверх/вниз — пересчитываем порядки для всех элементов (10, 20, 30...)
+   */
+  const handleMoveItem = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sortedItems.length) return;
+
+    // Создаем новый массив с нужным порядком
+    const newItems = [...sortedItems];
+    const temp = newItems[index];
+    newItems[index] = newItems[targetIndex];
+    newItems[targetIndex] = temp;
+
+    try {
+      // Присваиваем строгую последовательность значений 0, 10, 20...
+      for (let i = 0; i < newItems.length; i++) {
+        const expectedSort = i * 10;
+        if (newItems[i].sortOrder !== expectedSort) {
+          await updateItemInHeader(header.id, newItems[i].propertyId, {
+            sortOrder: expectedSort,
+          });
+        }
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Ошибка при изменении порядка');
+    }
+  };
+
   // Получаем имя свойства по ID
   const getPropertyName = (propertyId: number) => {
     const property = properties.find((p: any) => p.id === propertyId);
@@ -141,7 +178,7 @@ const HeaderItemsManagement: React.FC<HeaderItemsManagementProps> = ({
 
       <DialogContent dividers>
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
@@ -203,18 +240,34 @@ const HeaderItemsManagement: React.FC<HeaderItemsManagementProps> = ({
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
               <CircularProgress />
             </Box>
-          ) : headerItems.length === 0 ? (
+          ) : sortedItems.length === 0 ? (
             <Typography color="text.secondary">
               В этой шапке пока нет элементов
             </Typography>
           ) : (
             <List>
-              {headerItems.map((item, index) => (
+              {sortedItems.map((item, index) => (
                 <ListItem
                   key={`${item.headerId}-${item.propertyId}-${index}`}
                   divider
+                  sx={{
+                    pr: 16,
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                    },
+                  }}
                 >
+                  {/* Иконка-индикатор порядка */}
+                  <DragIcon
+                    sx={{
+                      mr: 1.5,
+                      color: 'text.disabled',
+                      fontSize: 20,
+                    }}
+                  />
+
                   <ListItemText
+                    primaryTypographyProps={{ component: 'div' }}
                     primary={
                       <Chip
                         label={getPropertyName(item.propertyId)}
@@ -234,14 +287,47 @@ const HeaderItemsManagement: React.FC<HeaderItemsManagementProps> = ({
                     }
                   />
                   <ListItemSecondaryAction>
-                    <IconButton
-                      edge="end"
-                      aria-label="delete"
-                      onClick={() => handleRemoveItem(item.propertyId)}
-                      color="error"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                      <Tooltip title="Переместить вверх">
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleMoveItem(index, 'up')}
+                            disabled={index === 0}
+                            sx={{
+                              color: index === 0 ? 'text.disabled' : 'primary.main',
+                            }}
+                          >
+                            <ArrowUpIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Переместить вниз">
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleMoveItem(index, 'down')}
+                            disabled={index === sortedItems.length - 1}
+                            sx={{
+                              color: index === sortedItems.length - 1 ? 'text.disabled' : 'primary.main',
+                            }}
+                          >
+                            <ArrowDownIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Удалить из шапки">
+                        <IconButton
+                          edge="end"
+                          aria-label="delete"
+                          onClick={() => handleRemoveItem(item.propertyId)}
+                          color="error"
+                          size="small"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </ListItemSecondaryAction>
                 </ListItem>
               ))}

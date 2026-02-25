@@ -1,105 +1,97 @@
-import { useState, useCallback } from 'react';
-import { apiClient } from '../../../shared/api/client';
+/**
+ * @file Хуки для управления значениями свойств
+ * @description Содержит SWR хуки для получения и управления значениями дополнительных свойств с поддержкой наценки
+ */
 
-export interface PropertyValue {
-  id: number;
-  propertyId: number;
-  value: string;
-  priceModifierId: number | null;
-  displayOrder: number;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import useSWR, { mutate } from 'swr';
+import { propertyApi } from '../../../shared/api/property';
+import type { CreatePropertyValueInput, UpdatePropertyValueInput } from '../../../shared/api/property/types';
 
-export interface CreatePropertyValueRequest {
-  propertyId: number;
-  value: string;
-  priceModifierId?: number | null;
-  displayOrder?: number;
-}
+/**
+ * Хук для получения списка значений свойства
+ * @param propertyId ID свойства
+ */
+export const usePropertyValues = (propertyId: number | undefined) => {
+  const key = propertyId ? `/property-values/by-property/${propertyId}` : null;
 
-export interface UpdatePropertyValueRequest {
-  value?: string;
-  priceModifierId?: number | null;
-  displayOrder?: number;
-  isActive?: boolean;
-}
-
-export const usePropertyValues = (propertyId: number) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchPropertyValues = useCallback(async (): Promise<PropertyValue[]> => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await apiClient.get(`/property-values/by-property/${propertyId}`);
-      return response.data;
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Ошибка загрузки значений свойства');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [propertyId]);
+  const { data, error, isLoading, mutate: mutateValues } = useSWR(key, () =>
+    propertyApi.getPropertyValues(propertyId!)
+  );
 
   return {
-    fetchPropertyValues,
-    loading,
+    propertyValues: data || [],
+    isLoading,
+    isError: !!error,
     error,
+    mutate: mutateValues
   };
 };
 
+/**
+ * Хук для создания значения свойства
+ */
 export const useCreatePropertyValue = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const createPropertyValue = useCallback(async (data: CreatePropertyValueRequest) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await apiClient.post('/property-values', data);
-      return response.data;
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Ошибка создания значения свойства');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   return {
-    createPropertyValue,
-    loading,
-    error,
+    /**
+     * Создает новое значение свойства
+     * @param data Данные для создания
+     */
+    createPropertyValue: async (data: CreatePropertyValueInput) => {
+      try {
+        const result = await propertyApi.createPropertyValue(data);
+        // Обновляем кэш значений этого свойства
+        await mutate(`/property-values/by-property/${data.propertyId}`);
+        return result;
+      } catch (error) {
+        console.error('Ошибка при создании значения свойства:', error);
+        throw error;
+      }
+    }
   };
 };
 
+/**
+ * Хук для обновления значения свойства
+ */
 export const useUpdatePropertyValue = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const updatePropertyValue = useCallback(async (id: number, data: UpdatePropertyValueRequest) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await apiClient.put(`/property-values/${id}`, data);
-      return response.data;
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Ошибка обновления значения свойства');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   return {
-    updatePropertyValue,
-    loading,
-    error,
+    /**
+     * Обновляет существующее значение свойства
+     * @param id ID значения
+     * @param propertyId ID родительского свойства (для инвалидации кэша)
+     * @param data Данные для обновления
+     */
+    updatePropertyValue: async (id: number, propertyId: number, data: UpdatePropertyValueInput) => {
+      try {
+        const result = await propertyApi.updatePropertyValue(id, data);
+        await mutate(`/property-values/by-property/${propertyId}`);
+        return result;
+      } catch (error) {
+        console.error('Ошибка при обновлении значения свойства:', error);
+        throw error;
+      }
+    }
+  };
+};
+
+/**
+ * Хук для удаления значения свойства
+ */
+export const useDeletePropertyValue = () => {
+  return {
+    /**
+     * Удаляет значение свойства
+     * @param id ID значения
+     * @param propertyId ID родительского свойства (для инвалидации кэша)
+     */
+    deletePropertyValue: async (id: number, propertyId: number) => {
+      try {
+        await propertyApi.deletePropertyValue(id);
+        await mutate(`/property-values/by-property/${propertyId}`);
+      } catch (error) {
+        console.error('Ошибка при удалении значения свойства:', error);
+        throw error;
+      }
+    }
   };
 };

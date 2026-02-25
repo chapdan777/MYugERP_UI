@@ -48,10 +48,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // Логирование для отладки
-  console.log('ProductsTable:', { products, isLoading, isError, error });
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 
@@ -128,24 +127,24 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Chip 
-                      label={product.code || '—'} 
-                      size="small" 
+                    <Chip
+                      label={product.code || '—'}
+                      size="small"
                       variant="outlined"
                     />
                   </TableCell>
                   <TableCell>
-                    <Chip 
-                      label={product.category || 'Не указана'} 
+                    <Chip
+                      label={product.category || 'Не указана'}
                       size="small"
                       color="primary"
                       variant="outlined"
                     />
                   </TableCell>
                   <TableCell>
-                    <Chip 
-                      label={product.unit} 
-                      size="small" 
+                    <Chip
+                      label={product.unit}
+                      size="small"
                       color="secondary"
                       variant="outlined"
                     />
@@ -159,8 +158,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip 
-                      label={product.isActive ? 'Активен' : 'Неактивен'} 
+                    <Chip
+                      label={product.isActive ? 'Активен' : 'Неактивен'}
                       size="small"
                       color={product.isActive ? 'success' : 'default'}
                     />
@@ -169,30 +168,30 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                     <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                       {onView && (
                         <Tooltip title="Просмотр">
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             onClick={() => onView(product)}
                           >
                             <VisibilityIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       )}
-                      
+
                       {onEdit && (
                         <Tooltip title="Редактировать">
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             onClick={() => onEdit(product)}
                           >
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       )}
-                      
+
                       {onDelete && (
                         <Tooltip title="Удалить">
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             onClick={() => onDelete(product.id)}
                             color="error"
                           >
@@ -208,7 +207,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
           </TableBody>
         </Table>
       </TableContainer>
-      
+
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
         component="div"

@@ -4,18 +4,16 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  Paper, 
-  Button, 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
   Chip,
   IconButton,
-  Box,
   Typography,
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
@@ -103,9 +101,9 @@ const UsersTable: React.FC<UsersTableProps> = ({ onEdit }) => {
                 <TableCell>{user.fullName}</TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
-                  <Chip 
-                    label={getRoleLabel(user.role)} 
-                    size="small" 
+                  <Chip
+                    label={getRoleLabel(user.role)}
+                    size="small"
                     color={getRoleColor(user.role)}
                   />
                 </TableCell>
@@ -117,21 +115,21 @@ const UsersTable: React.FC<UsersTableProps> = ({ onEdit }) => {
                   )}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={() => onEdit(user)}
                     disabled={!!deletingUserId}
                   >
                     <EditIcon fontSize="small" />
                   </IconButton>
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={() => handleDelete(user.id)}
                     disabled={!!deletingUserId}
                   >
-                    <DeleteIcon 
-                      fontSize="small" 
-                      color={deletingUserId === user.id ? 'disabled' : 'error'} 
+                    <DeleteIcon
+                      fontSize="small"
+                      color={deletingUserId === user.id ? 'disabled' : 'error'}
                     />
                   </IconButton>
                 </TableCell>

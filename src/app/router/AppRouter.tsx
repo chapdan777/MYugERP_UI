@@ -2,9 +2,10 @@
  * Конфигурация роутера приложения
  */
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { OrderPage } from '@pages/order';
+import { OrderPage, OrdersListPage } from '@pages/order';
 import { LoginPage } from '@pages/login';
 import DataManagementPage from '@pages/data-management';
+import { WorkOrdersPage, WorkOrderDetailsPage } from '@pages/work-orders';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 
@@ -24,12 +25,20 @@ export const router = createBrowserRouter([
         path: '/',
         element: (
             <ProtectedRoute>
-                <OrderPage />
+                <OrdersListPage />
             </ProtectedRoute>
         ),
     },
     {
         path: '/orders',
+        element: (
+            <ProtectedRoute>
+                <OrdersListPage />
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/orders/create',
         element: (
             <ProtectedRoute>
                 <OrderPage />
@@ -65,6 +74,22 @@ export const router = createBrowserRouter([
         element: (
             <ProtectedRoute>
                 <DataManagementPage />
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/work-orders',
+        element: (
+            <ProtectedRoute>
+                <WorkOrdersPage />
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/work-orders/:id',
+        element: (
+            <ProtectedRoute>
+                <WorkOrderDetailsPage />
             </ProtectedRoute>
         ),
     },

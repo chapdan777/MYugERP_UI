@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
-import { Box, Paper, Typography, Button, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, FormControlLabel, Switch } from '@mui/material';
-import { Edit as EditIcon, Visibility as VisibilityIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon, Settings as SettingsIcon } from '@mui/icons-material';
+import { Box, Paper, Typography, Button, Dialog, DialogTitle, DialogContent, FormControlLabel, Switch } from '@mui/material';
 // import { useSnackbar } from 'notistack';
 
 import { PropertiesTable } from './PropertiesTable';
 import { PropertyForm } from './PropertyForm';
 
-import { useProperties, useUpdateProperty, useActivateProperty, useDeactivateProperty } from '../model/property.hooks';
+import { useProperties, useActivateProperty, useDeactivateProperty } from '../model/property.hooks';
 import type { Property } from '../model/types';
 
 export const PropertiesManagementPage: React.FC = () => {
   const { properties, isLoading, mutate } = useProperties();
-  const { updateProperty } = useUpdateProperty();
   const { activateProperty } = useActivateProperty();
   const { deactivateProperty } = useDeactivateProperty();
   // const { enqueueSnackbar } = useSnackbar();
@@ -33,17 +31,6 @@ export const PropertiesManagementPage: React.FC = () => {
   const handleEditProperty = (property: Property) => {
     setEditingProperty(property);
     setShowForm(true);
-  };
-
-  const handleShowPropertyValues = (property: Property) => {
-    setShowForm(false);
-    setEditingProperty(undefined);
-
-    setSnackbar({
-      open: true,
-      message: 'Управление значениями свойств будет реализовано позже',
-      severity: 'info'
-    });
   };
 
   const handleTogglePropertyStatus = async (property: Property) => {

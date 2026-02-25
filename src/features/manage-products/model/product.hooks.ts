@@ -38,6 +38,31 @@ export const useProducts = () => {
 };
 
 /**
+ * Хук для получения только сырья/материалов
+ */
+export const useRawMaterials = () => {
+  const { data, error, isLoading } = useSWR<Product[]>(
+    `${PRODUCTS_API_URL}?category=material`,
+    async (url: string) => {
+      try {
+        const response = await apiClient.get(url);
+        return response.data;
+      } catch (err) {
+        console.error('Error fetching raw materials:', err);
+        throw err;
+      }
+    }
+  );
+
+  return {
+    materials: data || [],
+    isLoading,
+    isError: !!error,
+    error,
+  };
+};
+
+/**
  * Хук для получения продукта по ID
  */
 export const useProduct = (productId: string) => {
@@ -154,6 +179,7 @@ export const useSetProductProperties = () => {
         propertyId: number;
         isRequired?: boolean;
         displayOrder?: number;
+        defaultValue?: string | null;
       }>
     ) => {
       try {

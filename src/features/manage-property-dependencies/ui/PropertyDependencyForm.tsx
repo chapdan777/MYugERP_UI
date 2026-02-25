@@ -8,7 +8,8 @@ import {
     Select,
     Typography,
     FormHelperText,
-    CircularProgress
+    CircularProgress,
+    TextField
 } from '@mui/material';
 import { useProperties } from '../../manage-properties/model/property.hooks';
 import { usePropertyValues } from '../../manage-properties/model/property-value.hooks';
@@ -38,19 +39,23 @@ export const PropertyDependencyForm: React.FC<PropertyDependencyFormProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Values fetching
-    const { fetchPropertyValues: fetchSourceValues } = usePropertyValues(sourcePropertyId as number);
-    const { fetchPropertyValues: fetchTargetValues } = usePropertyValues(targetPropertyId as number);
+    // Fetched values
+    const { propertyValues: sourcePropertyValues } = usePropertyValues(typeof sourcePropertyId === 'number' ? sourcePropertyId : undefined);
+    const { propertyValues: targetPropertyValues } = usePropertyValues(typeof targetPropertyId === 'number' ? targetPropertyId : undefined);
 
     const [sourceValuesList, setSourceValuesList] = useState<any[]>([]);
     const [targetValuesList, setTargetValuesList] = useState<any[]>([]);
 
-    // Get selected property objects (compare as strings to avoid type mismatches)
-    const selectedSourceProperty = properties?.find((p: any) => String(p.id) === String(sourcePropertyId));
-    const selectedTargetProperty = properties?.find((p: any) => String(p.id) === String(targetPropertyId));
+    // Memoize selected properties
+    const selectedSourceProperty = React.useMemo(() =>
+        properties?.find((p: any) => String(p.id) === String(sourcePropertyId)),
+        [properties, sourcePropertyId]
+    );
 
-    console.log('DEBUG (FIXED FILE): sourcePropertyId:', sourcePropertyId);
-    console.log('DEBUG (FIXED FILE): selectedSourceProperty:', selectedSourceProperty);
+    const selectedTargetProperty = React.useMemo(() =>
+        properties?.find((p: any) => String(p.id) === String(targetPropertyId)),
+        [properties, targetPropertyId]
+    );
 
     const getPossibleValues = (prop: any) => {
         if (!prop?.possibleValues) return [];
@@ -68,77 +73,71 @@ export const PropertyDependencyForm: React.FC<PropertyDependencyFormProps> = ({
         return [];
     };
 
-    // Load source values when source property changes
+    // Update source values list when data or fallback changes
     useEffect(() => {
-        if (sourcePropertyId) {
-            console.log('DEBUG: Fetching values for property', sourcePropertyId);
-            fetchSourceValues()
-                .then((data) => {
-                    console.log('DEBUG: API Data source:', data);
-                    if (data && data.length > 0) {
-                        setSourceValuesList(data);
-                    } else {
-                        const fallbacks = getPossibleValues(selectedSourceProperty);
-                        console.log('DEBUG: Fallback values source:', fallbacks);
-                        if (fallbacks.length > 0) {
-                            setSourceValuesList(fallbacks.map((v: string, i: number) => ({
-                                id: `local-src-${i}`,
-                                value: v
-                            })));
-                        } else {
-                            setSourceValuesList([]);
-                        }
-                    }
-                })
-                .catch(err => {
-                    console.error('DEBUG: API Error source:', err);
-                    // Fallback on error
-                    const fallbacks = getPossibleValues(selectedSourceProperty);
-                    if (fallbacks.length > 0) {
-                        setSourceValuesList(fallbacks.map((v: string, i: number) => ({
-                            id: `local-src-${i}`,
-                            value: v
-                        })));
-                    }
-                });
+        if (sourcePropertyId && selectedSourceProperty) {
+            // Special handling for boolean
+            if (selectedSourceProperty.dataType === 'boolean') {
+                setSourceValuesList([
+                    { id: 'true', value: 'true' },
+                    { id: 'false', value: 'false' }
+                ]);
+                return;
+            }
+
+            console.log('DEBUG: Updating values for source property', sourcePropertyId);
+            if (sourcePropertyValues && sourcePropertyValues.length > 0) {
+                setSourceValuesList(sourcePropertyValues);
+            } else {
+                // Fallback
+                const fallbacks = getPossibleValues(selectedSourceProperty);
+                console.log('DEBUG: Fallback values source:', fallbacks);
+                if (fallbacks.length > 0) {
+                    setSourceValuesList(fallbacks.map((v: string, i: number) => ({
+                        id: `local-src-${i}`,
+                        value: v
+                    })));
+                } else {
+                    setSourceValuesList([]);
+                }
+            }
         } else {
             setSourceValuesList([]);
         }
-    }, [sourcePropertyId, fetchSourceValues, selectedSourceProperty]);
+        // Use stringify to prevent loop from unstable array reference
+    }, [sourcePropertyId, JSON.stringify(sourcePropertyValues), selectedSourceProperty]);
 
-    // Load target values when target property changes
+    // Update target values list when data or fallback changes
     useEffect(() => {
-        if (targetPropertyId) {
-            fetchTargetValues()
-                .then((data) => {
-                    if (data && data.length > 0) {
-                        setTargetValuesList(data);
-                    } else {
-                        const fallbacks = getPossibleValues(selectedTargetProperty);
-                        if (fallbacks.length > 0) {
-                            setTargetValuesList(fallbacks.map((v: string, i: number) => ({
-                                id: `local-tgt-${i}`,
-                                value: v
-                            })));
-                        } else {
-                            setTargetValuesList([]);
-                        }
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    const fallbacks = getPossibleValues(selectedTargetProperty);
-                    if (fallbacks.length > 0) {
-                        setTargetValuesList(fallbacks.map((v: string, i: number) => ({
-                            id: `local-tgt-${i}`,
-                            value: v
-                        })));
-                    }
-                });
+        if (targetPropertyId && selectedTargetProperty) {
+            // Special handling for boolean
+            if (selectedTargetProperty.dataType === 'boolean') {
+                setTargetValuesList([
+                    { id: 'true', value: 'true' },
+                    { id: 'false', value: 'false' }
+                ]);
+                return;
+            }
+
+            if (targetPropertyValues && targetPropertyValues.length > 0) {
+                setTargetValuesList(targetPropertyValues);
+            } else {
+                // Fallback
+                const fallbacks = getPossibleValues(selectedTargetProperty);
+                if (fallbacks.length > 0) {
+                    setTargetValuesList(fallbacks.map((v: string, i: number) => ({
+                        id: `local-tgt-${i}`,
+                        value: v
+                    })));
+                } else {
+                    setTargetValuesList([]);
+                }
+            }
         } else {
             setTargetValuesList([]);
         }
-    }, [targetPropertyId, fetchTargetValues, selectedTargetProperty]);
+        // Use stringify to prevent loop from unstable array reference
+    }, [targetPropertyId, JSON.stringify(targetPropertyValues), selectedTargetProperty]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -242,22 +241,38 @@ export const PropertyDependencyForm: React.FC<PropertyDependencyFormProps> = ({
             </FormControl>
 
             {/* Target Value (Only for SETS_VALUE) */}
-            {dependencyType === DependencyType.SETS_VALUE && (
-                <FormControl fullWidth disabled={!targetPropertyId}>
-                    <InputLabel>Значение целевого свойства (установить...)</InputLabel>
-                    <Select
-                        value={targetValue}
-                        label="Значение целевого свойства (установить...)"
-                        onChange={(e) => setTargetValue(e.target.value)}
-                        required
-                    >
-                        {targetValuesList.map((val: any) => (
-                            <MenuItem key={val.id} value={val.value}>
-                                {val.value}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
+            {dependencyType === DependencyType.SETS_VALUE && targetPropertyId && (
+                <>
+                    {/* Show TextField for number/string types, Select for select/boolean */}
+                    {selectedTargetProperty?.dataType === 'number' || selectedTargetProperty?.dataType === 'string' ? (
+                        <FormControl fullWidth>
+                            <TextField
+                                label="Значение целевого свойства (установить...)"
+                                value={targetValue}
+                                onChange={(e) => setTargetValue(e.target.value)}
+                                required
+                                type={selectedTargetProperty?.dataType === 'number' ? 'number' : 'text'}
+                                placeholder={selectedTargetProperty?.dataType === 'number' ? 'Введите число' : 'Введите текст'}
+                            />
+                        </FormControl>
+                    ) : (
+                        <FormControl fullWidth>
+                            <InputLabel>Значение целевого свойства (установить...)</InputLabel>
+                            <Select
+                                value={targetValue}
+                                label="Значение целевого свойства (установить...)"
+                                onChange={(e) => setTargetValue(e.target.value)}
+                                required
+                            >
+                                {targetValuesList.map((val: any) => (
+                                    <MenuItem key={val.id} value={val.value}>
+                                        {val.value}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    )}
+                </>
             )}
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>

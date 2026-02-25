@@ -3,22 +3,21 @@
  * @description Компонент для отображения списка свойств в виде таблицы с возможностью сортировки и фильтрации
  */
 
-import React, { useState } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  Paper, 
-  IconButton, 
-  Tooltip, 
+import React from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Tooltip,
   Chip,
-  CircularProgress,
-  Box
+  CircularProgress
 } from '@mui/material';
-import { Edit as EditIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon, Settings as SettingsIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon } from '@mui/icons-material';
 import type { Property } from '../model/types';
 
 interface PropertiesTableProps {
@@ -41,9 +40,6 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
   onToggleStatus,
   additionalActions = []
 }) => {
-  const filteredAdditionalActions = additionalActions.filter(action => 
-    !action.condition || action.condition
-  );
 
   return (
     <TableContainer component={Paper}>
@@ -71,8 +67,8 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
                 <TableCell>{property.name}</TableCell>
                 <TableCell>{property.code}</TableCell>
                 <TableCell>
-                  <Chip 
-                    label={property.dataType.toUpperCase()} 
+                  <Chip
+                    label={property.dataType.toUpperCase()}
                     size="small"
                     variant="outlined"
                   />
@@ -93,23 +89,23 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title="Редактировать">
-                    <IconButton 
+                    <IconButton
                       onClick={() => onEdit(property)}
                       color="primary"
                     >
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
-                  
+
                   <Tooltip title={property.isActive ? "Деактивировать" : "Активировать"}>
-                    <IconButton 
+                    <IconButton
                       onClick={() => onToggleStatus(property)}
                       color={property.isActive ? "default" : "primary"}
                     >
                       {property.isActive ? <ArchiveIcon /> : <UnarchiveIcon />}
                     </IconButton>
                   </Tooltip>
-                  
+
                   {/* Дополнительные действия */}
                   {additionalActions.map((action, index) => {
                     if (action.condition && !action.condition(property)) {
@@ -117,7 +113,7 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
                     }
                     return (
                       <Tooltip key={index} title={action.tooltip}>
-                        <IconButton 
+                        <IconButton
                           onClick={() => action.onClick(property)}
                           color="secondary"
                         >

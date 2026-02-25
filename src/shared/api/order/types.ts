@@ -11,12 +11,19 @@ export interface OrderItemDto {
     unit: string;
     length?: number;
     width?: number;
+    depth?: number;
+    note?: string; // Point 2
+    basePrice?: number; // Point 3
+    finalPrice?: number; // Point 3
     properties?: OrderPropertyDto[];
 }
+
+export type CreateOrderItemDto = OrderItemDto; // Alias for consistency
 
 export interface CreateOrderSectionDto {
     sectionNumber: number;
     sectionName: string;
+    headerId?: number; // Added for reference
     // Properties common to all items in this section (from Header settings)
     propertyValues?: OrderPropertyDto[];
     items: OrderItemDto[];

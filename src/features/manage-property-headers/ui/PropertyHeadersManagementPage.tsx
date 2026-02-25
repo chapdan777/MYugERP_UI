@@ -39,6 +39,7 @@ const PropertyHeadersManagementPage: React.FC = () => {
   const [managingItemsHeader, setManagingItemsHeader] = useState<PropertyHeader | null>(null);
   const [managingProductsHeader, setManagingProductsHeader] = useState<PropertyHeader | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Получаем данные
@@ -75,16 +76,18 @@ const PropertyHeadersManagementPage: React.FC = () => {
           description: data.description
         };
         await updatePropertyHeader(editingHeader.id, updateData);
+        setSuccessMessage('Шапка успешно обновлена!');
         setShowSuccess(true);
         handleCloseForm();
       } else {
         // Создание
         await createPropertyHeader(data as CreatePropertyHeaderInput);
+        setSuccessMessage('Шапка успешно создана!');
         setShowSuccess(true);
-        handleCloseForm();
       }
-    } catch (error: any) {
-      setErrorMessage(error.response?.data?.message || 'Произошла ошибка при сохранении');
+    } catch (error) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      setErrorMessage(axiosError.response?.data?.message || 'Произошла ошибка при сохранении');
     }
   };
 
@@ -98,18 +101,22 @@ const PropertyHeadersManagementPage: React.FC = () => {
   const handleActivate = async (id: number) => {
     try {
       await activatePropertyHeader(id);
+      setSuccessMessage('Шапка успешно активирована!');
       setShowSuccess(true);
-    } catch (error: any) {
-      setErrorMessage(error.response?.data?.message || 'Ошибка при активации шапки');
+    } catch (error) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      setErrorMessage(axiosError.response?.data?.message || 'Ошибка при активации шапки');
     }
   };
 
   const handleDeactivate = async (id: number) => {
     try {
       await deactivatePropertyHeader(id);
+      setSuccessMessage('Шапка успешно деактивирована!');
       setShowSuccess(true);
-    } catch (error: any) {
-      setErrorMessage(error.response?.data?.message || 'Ошибка при деактивации шапки');
+    } catch (error) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      setErrorMessage(axiosError.response?.data?.message || 'Ошибка при деактивации шапки');
     }
   };
 
@@ -117,9 +124,11 @@ const PropertyHeadersManagementPage: React.FC = () => {
     if (window.confirm('Вы уверены, что хотите удалить эту шапку?')) {
       try {
         await deletePropertyHeader(id);
+        setSuccessMessage('Шапка успешно удалена!');
         setShowSuccess(true);
-      } catch (error: any) {
-        setErrorMessage(error.response?.data?.message || 'Ошибка при удалении шапки');
+      } catch (error) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        setErrorMessage(axiosError.response?.data?.message || 'Ошибка при удалении шапки');
       }
     }
   };
@@ -129,8 +138,9 @@ const PropertyHeadersManagementPage: React.FC = () => {
       try {
         await removeItemFromHeader(headerId, propertyId);
         // SWR automatically updates the cache, so the list in form will update
-      } catch (error: any) {
-        setErrorMessage(error.response?.data?.message || 'Ошибка при удалении свойства');
+      } catch (error) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        setErrorMessage(axiosError.response?.data?.message || 'Ошибка при удалении свойства');
       }
     }
   };
@@ -150,8 +160,9 @@ const PropertyHeadersManagementPage: React.FC = () => {
       try {
         await removeProductFromHeader(headerId, productId);
         // SWR automatically updates the cache
-      } catch (error: any) {
-        setErrorMessage(error.response?.data?.message || 'Ошибка при удалении продукта');
+      } catch (error) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        setErrorMessage(axiosError.response?.data?.message || 'Ошибка при удалении продукта');
       }
     }
   };
@@ -251,7 +262,7 @@ const PropertyHeadersManagementPage: React.FC = () => {
           severity="success"
           sx={{ width: '100%' }}
         >
-          {editingHeader ? 'Шапка успешно обновлена!' : 'Шапка успешно создана!'}
+          {successMessage}
         </Alert>
       </Snackbar>
 

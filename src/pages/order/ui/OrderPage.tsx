@@ -1,158 +1,352 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
-import Button from '@mui/material/Button';
-import SaveIcon from '@mui/icons-material/Save';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
-import { MainLayout } from '@widgets/layout';
-import { OrderHeaderForm, OrderMaterialForm, ElementsTable } from '@features/manage-order';
-import type { FacadeElement, OrderFormData, OrderConfiguration } from '@entities/order';
-import { orderApi } from '@shared/api/order';
-import { PROPERTY_IDS } from '@shared/api/order/types';
-import type { CreateOrderDto, OrderPropertyDto } from '@shared/api/order/types';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import CircularProgress from '@mui/material/CircularProgress';
+import RestoreIcon from '@mui/icons-material/Restore';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
-/** Тестовые данные для карнизных элементов */
-const corniceElementsDataInitial: FacadeElement[] = [
-  { id: 1, name: 'Карниз Элит', length: 716, width: 256, quantity: 3, comment: '' },
-];
+import { MainLayout } from '@widgets/layout';
+import { OrderHeaderForm } from '@features/manage-order';
+import { OrderSection } from '@features/order/ui/OrderSection';
+import type { OrderFormData } from '@entities/order';
+import { orderApi } from '@shared/api/order';
+import type { CreateOrderDto, CreateOrderSectionDto } from '@shared/api/order/types';
+import { useWorkOrders, useGenerateWorkOrders } from '@features/manage-work-orders/model/work-orders.hooks';
+import { propertyHeadersApi } from '@shared/api/property-headers';
+import type { PropertyHeader } from '@shared/api/property-headers/types';
+import { useOrderDraft, hasDraft, getDraft, clearDraft } from '@features/order/model/useOrderDraft';
+
+const EMPTY_HEADER: OrderFormData = {
+  documentType: 'Фасады',
+  clientName: '',
+  orderName: '',
+  orderDate: new Date().toLocaleDateString('ru-RU'),
+  launchDate: new Date().toLocaleDateString('ru-RU'),
+  deadline: '',
+  lineNumber: '',
+  manager: '',
+};
 
 export const OrderPage = () => {
-  // State for Header Form
-  const [headerData, setHeaderData] = useState<OrderFormData>({
-    documentType: 'Фасады',
-    clientName: 'Абдрахманов Саул',
-    orderName: 'Диванный Конструктор 2,013',
-    orderDate: '16.02.2017',
-    launchDate: '17.02.2017',
-    deadline: 'Неделя',
-    lineNumber: '#12345',
-    manager: 'Да версия',
-  });
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const isEditMode = !!id;
 
-  // State for Material Form
-  const [materialData, setMaterialData] = useState<OrderConfiguration>({
-    material: 'Ротанг',
-    texture: 'Витая',
-    facadeModel: 'Ясень',
-    additive: '-',
-    thermalSeam: '+',
-    panelModel: 'Стандарт с рубашкой 1.5мм',
-    panelMaterial: 'Ясень',
-    color: 'Белый',
-    patina: 'Золотая',
-    gloss: 'Легкий глянец',
-    additionalParams: 'Непрокрашенная пора',
-    comment: 'Рамка без термошва! Нанесение патины стандартное не напылением!',
-  });
+  // 1. Order Header State
+  const [headerData, setHeaderData] = useState<OrderFormData>({ ...EMPTY_HEADER });
 
-  // State for Elements Tables
-  const [facadeElements, setFacadeElements] = useState<FacadeElement[]>([
-    { id: 1, name: 'Фасад глухой', length: 716, width: 256, quantity: 3, comment: '' },
-  ]);
-  const [corniceElements, setCorniceElements] = useState<FacadeElement[]>(corniceElementsDataInitial);
+  // 2. Sections State
+  const [sections, setSections] = useState<CreateOrderSectionDto[]>([]);
 
-  // UI State
+  // 3. UI State
+  const [isBindingLoading, setIsBindingLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAddingSection, setIsAddingSection] = useState(false);
+  const [availableHeaders, setAvailableHeaders] = useState<PropertyHeader[]>([]);
   const [notification, setNotification] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
     severity: 'success',
   });
 
+  // 4. Draft restore dialog
+  const [showDraftDialog, setShowDraftDialog] = useState(false);
+
+  // 5. Draft auto-save (только для нового заказа)
+  useOrderDraft(headerData, sections, !isEditMode);
+
+  // Work Orders Logic
+  const parsedId = id ? parseInt(id) : undefined;
+  const { workOrders } = useWorkOrders(parsedId ? { orderId: parsedId } : { orderId: -1 });
+  const { generateWorkOrders } = useGenerateWorkOrders();
+  const [isGeneratingWO, setIsGeneratingWO] = useState(false);
+
+  const handleGenerateWO = async () => {
+    if (!parsedId) return;
+    setIsGeneratingWO(true);
+    try {
+      await generateWorkOrders(parsedId);
+      setNotification({ open: true, message: 'Заказ-наряды сгенерированы', severity: 'success' });
+    } catch (e) {
+      setNotification({ open: true, message: 'Ошибка генерации ЗН', severity: 'error' });
+    } finally {
+      setIsGeneratingWO(false);
+    }
+  };
+
+  // Проверка черновика при первом открытии (только новый заказ)
+  useEffect(() => {
+    if (!isEditMode && hasDraft()) {
+      setShowDraftDialog(true);
+    }
+  }, [isEditMode]);
+
+  const handleRestoreDraft = () => {
+    const draft = getDraft();
+    if (draft) {
+      setHeaderData(draft.headerData);
+      setSections(draft.sections);
+      setNotification({ open: true, message: 'Черновик восстановлен', severity: 'success' });
+    }
+    setShowDraftDialog(false);
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setShowDraftDialog(false);
+  };
+
+  // Load Order Logic
+  useEffect(() => {
+    if (isEditMode) {
+      setIsBindingLoading(true);
+      orderApi.getOrder(id)
+        .then((order: any) => {
+          // 1. Header
+          setHeaderData({
+            documentType: 'Фасады',
+            clientName: order.clientName || '',
+            orderName: order.notes ? order.notes.replace('Заказ: ', '') : '',
+            orderDate: new Date(order.createdAt).toLocaleDateString('ru-RU'),
+            launchDate: new Date(order.createdAt).toLocaleDateString('ru-RU'),
+            deadline: order.deadline ? new Date(order.deadline).toLocaleDateString('ru-RU') : '',
+            lineNumber: order.orderNumber,
+            manager: '',
+          });
+
+          // 2. Sections
+          if (order.sections) {
+            const mappedSections = order.sections.map((section: any) => {
+              const firstItem = section.items?.[0];
+              const sectionPropertyValues = firstItem?.properties?.map((prop: any) => ({
+                propertyId: prop.propertyId,
+                propertyName: prop.propertyName,
+                propertyCode: prop.propertyCode,
+                value: prop.value
+              })) || [];
+
+              return {
+                sectionNumber: section.sectionNumber,
+                sectionName: section.name,
+                headerId: section.headerId || 3,
+                propertyValues: sectionPropertyValues,
+                items: section.items.map((item: any) => ({
+                  productId: item.productId,
+                  quantity: item.quantity,
+                  unit: item.unit === 2 ? 'м2' : item.unit === 3 ? 'п.м.' : 'шт',
+                  length: item.length,
+                  width: item.width,
+                  depth: item.depth,
+                  note: item.notes,
+                  basePrice: item.basePrice,
+                  finalPrice: item.finalPrice,
+                  properties: item.properties.map((prop: any) => ({
+                    propertyId: prop.propertyId,
+                    propertyName: prop.propertyName,
+                    propertyCode: prop.propertyCode,
+                    value: prop.value
+                  }))
+                }))
+              };
+            });
+            setSections(mappedSections);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          setNotification({ open: true, message: 'Не удалось загрузить заказ', severity: 'error' });
+        })
+        .finally(() => setIsBindingLoading(false));
+    }
+  }, [id, isEditMode]);
+
+  // Load headers when "Add Section" is opened
+  useEffect(() => {
+    if (isAddingSection) {
+      propertyHeadersApi.getAll({ isActive: true })
+        .then(setAvailableHeaders)
+        .catch(console.error);
+    }
+  }, [isAddingSection]);
+
+  const handleAddSection = (header: PropertyHeader) => {
+    const newSection: CreateOrderSectionDto = {
+      sectionNumber: sections.length + 1,
+      sectionName: header.name,
+      headerId: header.id,
+      propertyValues: [],
+      items: []
+    };
+    setSections([...sections, newSection]);
+    setIsAddingSection(false);
+  };
+
+  const handleRemoveSection = (index: number) => {
+    const newSections = [...sections];
+    newSections.splice(index, 1);
+    for (let i = index; i < newSections.length; i++) {
+      newSections[i].sectionNumber = i + 1;
+    }
+    setSections(newSections);
+  };
+
+  const handleUpdateSection = (index: number, data: Partial<CreateOrderSectionDto>) => {
+    const newSections = [...sections];
+    newSections[index] = { ...newSections[index], ...data };
+    setSections(newSections);
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // 1. Map Material Data to Property Values (Section Level)
-      const propertyValues: OrderPropertyDto[] = [
-        { propertyId: PROPERTY_IDS.material, propertyName: 'Материал', propertyCode: 'MAT', value: materialData.material },
-        { propertyId: PROPERTY_IDS.texture, propertyName: 'Текстура', propertyCode: 'TEX', value: materialData.texture },
-        { propertyId: PROPERTY_IDS.facadeModel, propertyName: 'Модель фасада', propertyCode: 'MOD', value: materialData.facadeModel },
-        { propertyId: PROPERTY_IDS.color, propertyName: 'Цвет', propertyCode: 'COL', value: materialData.color },
-        // Add other mapped properties here...
-      ];
-
-      // 2. Map Elements to Items
-      // Combine both tables for now into one section "Фасады"
-      const allElements = [...facadeElements, ...corniceElements];
-
-      const items = allElements.map(el => ({
-        productId: 1, // Placeholder Product ID (must be real ID in prod)
-        quantity: el.quantity,
-        unit: 'шт', // Default unit
-        length: el.length,
-        width: el.width,
-        properties: [] // Individual item overrides could go here
-      }));
-
-      // 3. Construct DTO
       const orderDto: CreateOrderDto = {
-        clientId: 1, // Placeholder Client ID
-        clientName: headerData.clientName,
-        notes: materialData.comment, // Using material comment as order notes for now
-        sections: [
-          {
-            sectionNumber: 1,
-            sectionName: headerData.documentType,
-            propertyValues: propertyValues,
-            items: items
-          }
-        ]
+        clientId: 1, // Placeholder
+        clientName: headerData.clientName || 'Без названия',
+        deadline: new Date().toISOString(),
+        notes: `Заказ: ${headerData.orderName || 'Новый'}`,
+        sections: sections
       };
 
-      // 4. Call API
-      await orderApi.createOrder(orderDto);
-
-      setNotification({ open: true, message: 'Заказ успешно создан!', severity: 'success' });
+      if (isEditMode && parsedId) {
+        await orderApi.updateOrder(parsedId, orderDto);
+        setNotification({ open: true, message: 'Заказ успешно обновлен!', severity: 'success' });
+      } else {
+        await orderApi.createOrder(orderDto);
+        // Очищаем черновик после успешного сохранения
+        clearDraft();
+        setNotification({ open: true, message: 'Заказ успешно создан!', severity: 'success' });
+      }
     } catch (error) {
-      console.error('Failed to create order:', error);
-      setNotification({ open: true, message: 'Ошибка при создании заказа', severity: 'error' });
+      console.error('Failed to save order:', error);
+      setNotification({ open: true, message: 'Ошибка при сохранении заказа', severity: 'error' });
     } finally {
       setIsSaving(false);
     }
   };
 
-  return (
-    <MainLayout orderNumber={headerData.lineNumber}>
-      <Box sx={{ maxWidth: 1400, mx: 'auto', p: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? 'Сохранение...' : 'Сохранить заказ'}
-          </Button>
+  if (isBindingLoading) {
+    return (
+      <MainLayout orderNumber="LOADING...">
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+          <CircularProgress />
         </Box>
+      </MainLayout>
+    );
+  }
 
+  return (
+    <MainLayout
+      orderNumber={headerData.lineNumber || (isEditMode ? '' : 'НОВЫЙ')}
+      pageTitle={isEditMode ? 'Редактирование заказа' : 'Новый заказ'}
+      onSave={handleSave}
+      isSaving={isSaving}
+      onAddSection={() => setIsAddingSection(true)}
+      onGenerateWorkOrder={isEditMode && parsedId ? handleGenerateWO : undefined}
+      isGeneratingWO={isGeneratingWO}
+      onNavigateWorkOrders={isEditMode && parsedId ? () => navigate(`/work-orders?orderId=${parsedId}`) : undefined}
+      workOrdersCount={workOrders?.length}
+    >
+      <Box sx={{ maxWidth: 1400, mx: 'auto', p: 2 }}>
+        {/* Technical Header */}
         <OrderHeaderForm
           initialData={headerData}
           onChange={setHeaderData}
         />
 
-        <OrderMaterialForm
-          initialData={materialData}
-          onChange={setMaterialData}
-        />
-
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <ElementsTable
-              title="Фасадные элементы"
-              elements={facadeElements}
-              onChange={setFacadeElements}
+        <Box sx={{ my: 3 }}>
+          {/* Sections List */}
+          {sections.map((section, index) => (
+            <OrderSection
+              key={index}
+              index={index}
+              section={section}
+              onRemove={handleRemoveSection}
+              onUpdate={handleUpdateSection}
             />
-          </Grid>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <ElementsTable
-              title="Карнизные элементы"
-              elements={corniceElements}
-              onChange={setCorniceElements}
-            />
-          </Grid>
-        </Grid>
+          ))}
 
+          {sections.length === 0 && (
+            <Box sx={{
+              textAlign: 'center',
+              py: 5,
+              color: 'text.secondary',
+              bgcolor: 'action.hover',
+              borderRadius: 2,
+              border: '2px dashed',
+              borderColor: 'divider',
+            }}>
+              Нет добавленных секций. Нажмите «Добавить секцию» в шапке, чтобы начать формирование заказа.
+            </Box>
+          )}
+        </Box>
+
+        {/* Add Section Dialog */}
+        <Dialog open={isAddingSection} onClose={() => setIsAddingSection(false)}>
+          <DialogTitle>Выберите тип секции (Шапку)</DialogTitle>
+          <DialogContent>
+            <List>
+              {availableHeaders.map(header => (
+                <ListItemButton key={header.id} onClick={() => handleAddSection(header)}>
+                  <ListItemText primary={header.name} secondary={header.description} />
+                </ListItemButton>
+              ))}
+              {availableHeaders.length === 0 && (
+                <ListItemText primary="Нет доступных шапок" />
+              )}
+            </List>
+          </DialogContent>
+        </Dialog>
+
+        {/* Draft Restore Dialog */}
+        <Dialog
+          open={showDraftDialog}
+          onClose={handleDiscardDraft}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <RestoreIcon color="primary" />
+            Восстановить черновик?
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              У вас есть несохранённый черновик заказа
+              {getDraft()?.savedAt && (
+                <> от <strong>{new Date(getDraft()!.savedAt).toLocaleString('ru-RU')}</strong></>
+              )}.
+              Хотите восстановить его?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={handleDiscardDraft}
+              startIcon={<DeleteOutlineIcon />}
+              color="inherit"
+            >
+              Начать заново
+            </Button>
+            <Button
+              onClick={handleRestoreDraft}
+              variant="contained"
+              startIcon={<RestoreIcon />}
+            >
+              Восстановить
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Notification */}
         <Snackbar
           open={notification.open}
           autoHideDuration={6000}

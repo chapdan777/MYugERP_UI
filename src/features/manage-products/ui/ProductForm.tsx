@@ -21,10 +21,18 @@ import {
   FormControlLabel,
   Chip,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
 } from '@mui/material';
+import { Delete as DeleteIcon } from '@mui/icons-material';
 import type { Product, CreateProductInput } from '../model/types';
 import { useCreateProduct, useUpdateProduct, useSetProductProperties, useGetProductProperties } from '../model/product.hooks';
 import { useProperties } from '../../manage-properties/model/property.hooks';
+import { ProductMaterialsDialog } from './ProductMaterialsDialog';
+import { ProductComponentsDialog } from './ProductComponentsDialog';
 
 interface ProductFormProps {
   /** Продукт для редактирования (если undefined - создание нового) */
@@ -58,6 +66,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     basePrice: product?.basePrice || 0,
     unit: product?.unit || 'шт',
     category: product?.category || '',
+    defaultLength: product?.defaultLength ?? undefined,
+    defaultWidth: product?.defaultWidth ?? undefined,
+    defaultDepth: product?.defaultDepth ?? undefined,
   });
 
   const [snackbar, setSnackbar] = useState({
@@ -75,6 +86,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       defaultValue?: string;
     }>
   >([]);
+
+  const [materialsDialogOpen, setMaterialsDialogOpen] = useState(false);
+  const [componentsDialogOpen, setComponentsDialogOpen] = useState(false);
+  const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
 
   // Загрузка дополнительных свойств при монтировании
   useEffect(() => {
@@ -96,20 +111,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       const productProps = await getProductProperties(product.id);
       console.log('📥 Loaded product properties:', productProps);
 
-      // Преобразуем свойства продукта в формат additionalProperties
-      const mappedProperties = properties
-        .filter((p: any) => p.isActive !== false && p.is_active !== false && p.is_active !== 0)
-        .map((property: any) => {
-          const productProp = productProps.find((pp: any) => pp.propertyId === property.id);
+      // Only show properties that are actually saved for this product
+      // Map productProps to additionalProperties format, enriching with property details
+      const mappedProperties = productProps
+        .map((productProp: any) => {
+          // Find the full property details from the properties list
+          const property = properties.find((p: any) => p.id === productProp.propertyId);
+          if (!property) return null; // Property no longer exists in system
 
           return {
             propertyId: property.id,
             property,
-            value: property.defaultValue || '',
-            isActive: !!productProp, // Активно если есть в product_properties
-            defaultValue: property.defaultValue || '',
+            value: productProp.defaultValue ?? property.defaultValue ?? '',
+            isActive: productProp.isActive ?? true, // Read isActive from saved data
+            defaultValue: productProp.defaultValue ?? property.defaultValue ?? '',
           };
-        });
+        })
+        .filter(Boolean); // Remove nulls
 
       setAdditionalProperties(mappedProperties);
     } catch (error) {
@@ -132,7 +150,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const handlePropertyChange = (propertyId: number, value: string) => {
     setAdditionalProperties(prev =>
       prev.map(prop =>
-        prop.propertyId === propertyId ? { ...prop, value } : prop
+        prop.propertyId === propertyId
+          ? { ...prop, value, defaultValue: value } // Update both value and defaultValue
+          : prop
       )
     );
   };
@@ -145,6 +165,40 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           ? { ...prop, isActive: !prop.isActive }
           : prop
       )
+    );
+  };
+
+  // Добавление конкретного свойства к продукту
+  const addPropertyToProduct = (property: any, asActive: boolean = true) => {
+    // Проверяем, не добавлено ли уже это свойство
+    const exists = additionalProperties.some(p => p.propertyId === property.id);
+    if (exists) return;
+
+    setAdditionalProperties(prev => [
+      ...prev,
+      {
+        propertyId: property.id,
+        property,
+        value: property.defaultValue || '',
+        isActive: asActive,
+        defaultValue: property.defaultValue || '',
+      }
+    ]);
+  };
+
+  // Удаление свойства из продукта
+  const removePropertyFromProduct = (propertyId: number) => {
+    setAdditionalProperties(prev => prev.filter(p => p.propertyId !== propertyId));
+  };
+
+  // Получение свойств, которые ещё не добавлены к продукту
+  const getAvailableProperties = () => {
+    const addedIds = new Set(additionalProperties.map(p => p.propertyId));
+    return properties.filter((p: any) =>
+      !addedIds.has(p.id) &&
+      p.isActive !== false &&
+      p.is_active !== false &&
+      p.is_active !== 0
     );
   };
 
@@ -170,24 +224,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           basePrice: formData.basePrice,
           unit: formData.unit,
           category: formData.category,
+          defaultLength: formData.defaultLength,
+          defaultWidth: formData.defaultWidth,
+          defaultDepth: formData.defaultDepth,
         };
         console.log('📤 Update payload:', updateData);
         resultProduct = await updateProduct(product.id.toString(), updateData);
 
-        // Сохраняем свойства (только активные)
-        const activeProperties = additionalProperties
-          .filter(p => p.isActive)
+        // Save ALL properties (both active and inactive) to persist deletions and state
+        const propertiesToSave = additionalProperties
           .map((p, index) => ({
             propertyId: typeof p.propertyId === 'string'
               ? parseInt(p.propertyId.replace('prop-', ''))
               : p.propertyId,
             isRequired: false,
             displayOrder: index,
+            defaultValue: p.defaultValue || null,
+            isActive: p.isActive, // Include active state
           }));
 
-        if (activeProperties.length > 0) {
-          await setProductProperties(product.id, activeProperties);
-        }
+        // Always call API to update properties (even if empty - to delete all)
+        await setProductProperties(product.id, propertiesToSave);
 
         setSnackbar({
           open: true,
@@ -198,19 +255,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         // Режим создания - отправляем все поля
         resultProduct = await createProduct(formData);
 
-        // Сохраняем свойства (только активные)
-        const activeProperties = additionalProperties
-          .filter(p => p.isActive)
+        // Save ALL properties (both active and inactive) to persist state
+        const propertiesToSave = additionalProperties
           .map((p, index) => ({
             propertyId: typeof p.propertyId === 'string'
               ? parseInt(p.propertyId.replace('prop-', ''))
               : p.propertyId,
             isRequired: false,
             displayOrder: index,
+            defaultValue: p.defaultValue || null,
+            isActive: p.isActive,
           }));
 
-        if (activeProperties.length > 0) {
-          await setProductProperties(resultProduct.id, activeProperties);
+        if (propertiesToSave.length > 0) {
+          await setProductProperties(resultProduct.id, propertiesToSave);
         }
 
         setSnackbar({
@@ -239,6 +297,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     { value: 'partitions', label: 'Перегородки' },
     { value: 'railings', label: 'Ограждения' },
     { value: 'canopies', label: 'Навесы' },
+    { value: 'material', label: 'Материал' },
+    { value: 'semifinished', label: 'Полуфабрикат' },
     { value: 'other', label: 'Другое' },
   ];
 
@@ -337,57 +397,45 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               />
             </Box>
 
-            {/* Размеры по умолчанию - временно скрыты, так как требуют отдельной реализации */}
-            {/*
             <Divider sx={{ my: 2 }} />
-            <Typography variant="subtitle1" gutterBottom>
-              Размеры по умолчанию
+            <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+              Размеры по умолчанию (опционально)
             </Typography>
-              
+
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
               <TextField
                 sx={{ flex: 1 }}
                 label="Длина (мм)"
                 type="number"
-                value={formData.properties?.defaultLength || ''}
-                onChange={e => handleFieldChange('properties', {
-                  ...formData.properties,
-                  defaultLength: Number(e.target.value)
-                })}
+                value={formData.defaultLength ?? ''}
+                onChange={e => handleFieldChange('defaultLength', e.target.value === '' ? undefined : Number(e.target.value))}
                 InputProps={{
                   inputProps: { min: 0 }
                 }}
               />
-                
+
               <TextField
                 sx={{ flex: 1 }}
                 label="Ширина (мм)"
                 type="number"
-                value={formData.properties?.defaultWidth || ''}
-                onChange={e => handleFieldChange('properties', {
-                  ...formData.properties,
-                  defaultWidth: Number(e.target.value)
-                })}
+                value={formData.defaultWidth ?? ''}
+                onChange={e => handleFieldChange('defaultWidth', e.target.value === '' ? undefined : Number(e.target.value))}
                 InputProps={{
                   inputProps: { min: 0 }
                 }}
               />
-                
+
               <TextField
                 sx={{ flex: 1 }}
-                label="Глубина (мм)"
+                label="Толщина / Глубина (мм)"
                 type="number"
-                value={formData.properties?.defaultDepth || ''}
-                onChange={e => handleFieldChange('properties', {
-                  ...formData.properties,
-                  defaultDepth: Number(e.target.value)
-                })}
+                value={formData.defaultDepth ?? ''}
+                onChange={e => handleFieldChange('defaultDepth', e.target.value === '' ? undefined : Number(e.target.value))}
                 InputProps={{
                   inputProps: { min: 0 }
                 }}
               />
             </Box>
-            */}
 
             {/* Дополнительные свойства */}
             <Divider sx={{ my: 2 }} />
@@ -401,25 +449,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               <>
                 {/* Кнопка добавления свойств - всегда видна при редактировании */}
                 {product && (
-                  <Box sx={{ mb: 2 }}>
+                  <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
                     <Button
                       variant="outlined"
                       size="small"
-                      onClick={() => {
-                        // Добавляем все доступные свойства как неактивные
-                        const newProperties = properties
-                          .filter((p: any) => p.isActive !== false && p.is_active !== false && p.is_active !== 0)
-                          .map((property: any) => ({
-                            propertyId: property.id,
-                            property,
-                            value: property.defaultValue || '',
-                            isActive: false,
-                            defaultValue: property.defaultValue || '',
-                          }));
-                        setAdditionalProperties(prev => [...prev, ...newProperties]);
-                      }}
+                      onClick={() => setPropertyPickerOpen(true)}
                     >
                       Добавить дополнительные свойства
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      size="small"
+                      onClick={() => setMaterialsDialogOpen(true)}
+                    >
+                      Управление материалами (Формулы)
                     </Button>
                   </Box>
                 )}
@@ -457,12 +502,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                 </Box>
                               }
                             />
-                            <Box sx={{ ml: 'auto' }}>
+                            <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Chip
                                 label={property.dataType}
                                 size="small"
                                 variant="outlined"
                               />
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => removePropertyFromProduct(property.id)}
+                                title="Удалить свойство"
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
                             </Box>
                           </Box>
 
@@ -525,7 +578,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               <Button
                 variant="contained"
                 type="submit"
-                disabled={!formData.name || !formData.category || !formData.unit || formData.basePrice <= 0}
+                disabled={!formData.name || !formData.category || !formData.unit || formData.basePrice < 0}
               >
                 {product ? 'Сохранить' : 'Создать'}
               </Button>
@@ -533,6 +586,83 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           </Box>
         </CardContent>
       </Card>
+
+      <ProductMaterialsDialog
+        open={materialsDialogOpen}
+        onClose={() => setMaterialsDialogOpen(false)}
+        productId={product ? product.id : 0}
+        productName={product?.name || 'Новый продукт'}
+        properties={additionalProperties.filter(p => p.isActive)}
+      />
+
+      {product && (
+        <ProductComponentsDialog
+          open={componentsDialogOpen}
+          onClose={() => setComponentsDialogOpen(false)}
+          productId={product.id}
+          productName={product.name}
+          properties={additionalProperties.filter(p => p.isActive)}
+        />
+      )}
+
+      {/* Property Picker Dialog */}
+      <Dialog
+        open={propertyPickerOpen}
+        onClose={() => setPropertyPickerOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Добавить дополнительное свойство</DialogTitle>
+        <DialogContent>
+          {getAvailableProperties().length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 2 }}>
+              Все доступные свойства уже добавлены к этому продукту
+            </Typography>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, pt: 1 }}>
+              {getAvailableProperties().map((property: any) => (
+                <Card key={property.id} variant="outlined">
+                  <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="body1">{property.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {property.code} • {property.dataType}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => {
+                            addPropertyToProduct(property, true);
+                            setPropertyPickerOpen(false);
+                          }}
+                        >
+                          Добавить (активное)
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            addPropertyToProduct(property, false);
+                            setPropertyPickerOpen(false);
+                          }}
+                        >
+                          Добавить (неактивное)
+                        </Button>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPropertyPickerOpen(false)}>Закрыть</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar для уведомлений */}
       <Snackbar

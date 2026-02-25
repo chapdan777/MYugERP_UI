@@ -18,6 +18,7 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import PeopleIcon from '@mui/icons-material/People';
 import SettingsIcon from '@mui/icons-material/Settings';
 import StorageIcon from '@mui/icons-material/Storage'; // Иконка для управления данными
+import EngineeringIcon from '@mui/icons-material/Engineering';
 import LogoutIcon from '@mui/icons-material/Logout';
 
 /** Ширина боковой панели */
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { path: '/', label: 'Главная', icon: <HomeIcon /> },
   { path: '/data-management', label: 'Управление данными', icon: <StorageIcon /> }, // Moved up for visibility test
   { path: '/orders', label: 'Заказы', icon: <AssignmentIcon /> },
+  { path: '/work-orders', label: 'Заказ-наряды', icon: <EngineeringIcon /> },
   { path: '/products', label: 'Продукция', icon: <InventoryIcon /> },
   { path: '/users', label: 'Пользователи', icon: <PeopleIcon /> },
 ];

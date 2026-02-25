@@ -23,6 +23,7 @@ export interface Property {
   isEditable: boolean;
   isActive: boolean;
   displayOrder: number;
+  variableName?: string;
   targetEntity: 'product' | 'order' | 'user';
   createdAt: string;
   updatedAt: string;
@@ -35,6 +36,7 @@ export interface CreatePropertyInput {
   code: string;
   name: string;
   description?: string;
+  variableName?: string;
   dataType: PropertyDataType;
   possibleValues?: string[];
   defaultValue?: string;
@@ -52,6 +54,7 @@ export interface UpdatePropertyInput {
   code?: string;
   name?: string;
   description?: string;
+  variableName?: string;
   dataType?: PropertyDataType;
   possibleValues?: string[];
   defaultValue?: string;

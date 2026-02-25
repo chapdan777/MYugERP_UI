@@ -1,25 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  TextField, 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  MenuItem, 
-  Checkbox, 
+import {
+  Box,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Checkbox,
   FormControlLabel,
   Button,
-  Chip,
-  Autocomplete,
-  Typography
+  Alert
 } from '@mui/material';
-import { 
-  Save as SaveIcon, 
-  Cancel as CancelIcon,
-  Add as AddIcon
+import {
+  Save as SaveIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
-import type { Property, PropertyDataType, CreatePropertyInput, UpdatePropertyInput } from '../model/types';
+import type { Property, PropertyDataType } from '../model/types';
 import { useCreateProperty, useUpdateProperty } from '../model/property.hooks';
+import { PropertyValueList } from './PropertyValueList';
 
 interface PropertyFormProps {
   /** Свойство для редактирования (если undefined - режим создания) */
@@ -30,14 +28,6 @@ interface PropertyFormProps {
   onCancel: () => void;
 }
 
-const DATA_TYPE_MAP: Record<string, string> = {
-  'string': 'string',
-  'number': 'number',
-  'boolean': 'boolean',
-  'select': 'select',
-  'multiselect': 'multi_select',
-};
-
 const DATA_TYPES: { value: PropertyDataType; label: string }[] = [
   { value: 'string', label: 'Строка' },
   { value: 'number', label: 'Число' },
@@ -46,22 +36,24 @@ const DATA_TYPES: { value: PropertyDataType; label: string }[] = [
   { value: 'multiselect', label: 'Множественный выбор' },
 ];
 
-export const PropertyForm: React.FC<PropertyFormProps> = ({ 
-  property, 
-  onSuccess, 
-  onCancel 
+export const PropertyForm: React.FC<PropertyFormProps> = ({
+  property,
+  onSuccess,
+  onCancel
 }) => {
   const { createProperty } = useCreateProperty();
   const { updateProperty } = useUpdateProperty();
-  
+
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     dataType: 'string' as PropertyDataType,
     isRequired: false,
-    possibleValues: [] as string[],
     defaultValue: '',
+    variableName: '',
   });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Загрузка данных при редактировании
   useEffect(() => {
@@ -71,8 +63,8 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
         code: property.code || '',
         dataType: property.dataType || 'string',
         isRequired: property.isRequired || false,
-        possibleValues: property.possibleValues || [],
         defaultValue: property.defaultValue || '',
+        variableName: property.variableName || '',
       });
     }
   }, [property]);
@@ -80,49 +72,51 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
   const handleChange = (field: keyof typeof formData) => (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    const value = event.target.type === 'checkbox' 
-      ? (event.target as HTMLInputElement).checked 
+    const value = event.target.type === 'checkbox'
+      ? (event.target as HTMLInputElement).checked
       : event.target.value;
-    
+
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-  };
 
-  const handlePossibleValuesChange = (
-    event: React.SyntheticEvent, 
-    newValue: string[]
-  ) => {
-    setFormData(prev => ({
-      ...prev,
-      possibleValues: newValue
-    }));
+    if (field === 'variableName') {
+      const stringValue = String(value);
+      if (stringValue && !/^[a-zA-Z0-9_]*$/.test(stringValue)) {
+        setErrors(prev => ({ ...prev, variableName: 'Допустимы только латинские буквы, цифры и подчеркивание' }));
+      } else {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.variableName;
+          return newErrors;
+        });
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const propertyData: any = {
         code: formData.code.trim(),
         name: formData.name.trim(),
-        dataType: DATA_TYPE_MAP[formData.dataType],
+        dataType: formData.dataType,
         isRequired: formData.isRequired,
         displayOrder: 0,
       };
 
-      // Добавляем опциональные поля только если они есть
-      if (formData.possibleValues.length > 0) {
-        propertyData.possibleValues = formData.possibleValues;
+      if (formData.variableName?.trim()) {
+        propertyData.variableName = formData.variableName.trim();
       }
-      
+
       if (formData.defaultValue.trim()) {
         propertyData.defaultValue = formData.defaultValue.trim();
       }
 
       console.log('Отправляемые данные:', propertyData);
-      
+
       if (property) {
         // Режим редактирования
         await updateProperty(property.id, propertyData);
@@ -130,14 +124,16 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
         // Режим создания
         await createProperty(propertyData);
       }
-      
+
       onSuccess();
     } catch (error) {
       console.error('Ошибка при сохранении свойства:', error);
     }
   };
 
-  const isSubmitDisabled = !formData.name?.trim() || !formData.code?.trim();
+
+
+  const isSubmitDisabled = !formData.name?.trim() || !formData.code?.trim() || !!errors.variableName;
 
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
@@ -161,13 +157,24 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
         helperText="Уникальный технический код"
       />
 
+      <TextField
+        fullWidth
+        label="Имя переменной (для формул)"
+        value={formData.variableName}
+        onChange={handleChange('variableName')}
+        margin="normal"
+        error={!!errors.variableName}
+        helperText={errors.variableName || "Имя переменной для использования в формулах (латиница, цифры, _)"}
+        inputProps={{ style: { textTransform: 'uppercase' } }}
+      />
+
       <FormControl fullWidth margin="normal">
         <InputLabel>Тип данных *</InputLabel>
         <Select
           value={formData.dataType}
           label="Тип данных *"
-          onChange={(e) => handleChange('dataType')({ 
-            target: { value: e.target.value, type: 'select' } 
+          onChange={(e) => handleChange('dataType')({
+            target: { value: e.target.value, type: 'select' }
           } as any)}
         >
           {DATA_TYPES.map(type => (
@@ -178,46 +185,26 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
         </Select>
       </FormControl>
 
-
-
       {(formData.dataType === 'select' || formData.dataType === 'multiselect') && (
-        <Autocomplete
-          multiple
-          freeSolo
-          options={[]} // Пустой массив, так как пользователь может вводить любые значения
-          value={formData.possibleValues}
-          onChange={handlePossibleValuesChange}
-          renderTags={(value, getTagProps) =>
-            value.map((option, index) => (
-              <Chip 
-                variant="outlined" 
-                label={option} 
-                {...getTagProps({ index })} 
-                key={index}
-              />
-            ))
-          }
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Возможные значения"
-              placeholder="Введите значение и нажмите Enter"
-              helperText="Добавьте возможные значения через Enter"
-            />
+        <React.Fragment>
+          {property ? (
+            <PropertyValueList propertyId={property.id} />
+          ) : (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Сохраните свойство, чтобы добавить возможные значения
+            </Alert>
           )}
-          sx={{ mt: 2 }}
-        />
-      )}
 
-      {(formData.dataType === 'select' || formData.dataType === 'multiselect') && (
-        <TextField
-          fullWidth
-          label="Значение по умолчанию"
-          value={formData.defaultValue}
-          onChange={handleChange('defaultValue')}
-          margin="normal"
-          helperText="Значение, которое будет установлено по умолчанию"
-        />
+          <TextField
+            fullWidth
+            label="Значение по умолчанию"
+            value={formData.defaultValue}
+            onChange={handleChange('defaultValue')}
+            margin="normal"
+            helperText="Значение, которое будет установлено по умолчанию"
+            sx={{ mt: 2 }}
+          />
+        </React.Fragment>
       )}
 
       <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
@@ -252,8 +239,6 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
           Отмена
         </Button>
       </Box>
-
-
     </Box>
   );
 };

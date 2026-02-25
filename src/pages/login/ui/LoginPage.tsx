@@ -37,6 +37,11 @@ export const LoginPage = () => {
       const response = await login({ username, password });
       localStorage.setItem('accessToken', response.accessToken);
       localStorage.setItem('refreshToken', response.refreshToken);
+      localStorage.setItem('user', JSON.stringify(response.user));
+
+      // Dispatch storage event to notify hooks in same window
+      window.dispatchEvent(new Event('storage'));
+
       navigate('/');
     } catch {
       setError('Неверное имя пользователя или пароль');

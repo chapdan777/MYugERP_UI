@@ -134,7 +134,7 @@ const PropertyHeaderForm: React.FC<PropertyHeaderFormProps> = ({
 
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ maxWidth: 600 }}>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" component="div" gutterBottom>
         {isEditMode ? 'Редактировать шапку' : 'Создать новую шапку'}
       </Typography>
 
@@ -229,7 +229,11 @@ const PropertyHeaderForm: React.FC<PropertyHeaderFormProps> = ({
                       <IconButton
                         edge="end"
                         aria-label="delete"
-                        onClick={() => onRemoveItem(item.headerId, item.propertyId)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveItem(item.headerId, item.propertyId);
+                        }}
                         color="error"
                         size="small"
                       >
@@ -240,8 +244,9 @@ const PropertyHeaderForm: React.FC<PropertyHeaderFormProps> = ({
                 >
                   <ListItemText
                     primary={getPropertyName(item.propertyId)}
+                    secondaryTypographyProps={{ component: 'div' }}
                     secondary={
-                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      <Box component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                         <TextField
                           label="Сортировка"
                           size="small"
@@ -307,7 +312,11 @@ const PropertyHeaderForm: React.FC<PropertyHeaderFormProps> = ({
                       <IconButton
                         edge="end"
                         aria-label="delete"
-                        onClick={() => onRemoveProduct(item.headerId, item.productId)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveProduct(item.headerId, item.productId);
+                        }}
                         color="error"
                         size="small"
                       >
@@ -318,6 +327,7 @@ const PropertyHeaderForm: React.FC<PropertyHeaderFormProps> = ({
                 >
                   <ListItemText
                     primary={getProductName(item.productId)}
+                    secondaryTypographyProps={{ component: 'div' }}
                     secondary={
                       <Typography variant="caption" color="text.secondary">
                         ID: {item.productId}
