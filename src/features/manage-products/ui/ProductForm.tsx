@@ -27,7 +27,11 @@ import {
   DialogActions,
   IconButton,
 } from '@mui/material';
-import { Delete as DeleteIcon } from '@mui/icons-material';
+import {
+  Delete as DeleteIcon,
+  ArrowUpward as UpIcon,
+  ArrowDownward as DownIcon
+} from '@mui/icons-material';
 import type { Product, CreateProductInput } from '../model/types';
 import { useCreateProduct, useUpdateProduct, useSetProductProperties, useGetProductProperties } from '../model/product.hooks';
 import { useProperties } from '../../manage-properties/model/property.hooks';
@@ -189,6 +193,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   // Удаление свойства из продукта
   const removePropertyFromProduct = (propertyId: number) => {
     setAdditionalProperties(prev => prev.filter(p => p.propertyId !== propertyId));
+  };
+
+  // Перемещение свойства вверх/вниз
+  const moveProperty = (index: number, direction: 'up' | 'down') => {
+    setAdditionalProperties(prev => {
+      const newProps = [...prev];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= newProps.length) return prev;
+
+      const temp = newProps[index];
+      newProps[index] = newProps[targetIndex];
+      newProps[targetIndex] = temp;
+      return newProps;
+    });
   };
 
   // Получение свойств, которые ещё не добавлены к продукту
@@ -466,6 +484,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     >
                       Управление материалами (Формулы)
                     </Button>
+
+                    <Button
+                      variant="outlined"
+                      color="info"
+                      size="small"
+                      onClick={() => setComponentsDialogOpen(true)}
+                    >
+                      Деталировка (Состав)
+                    </Button>
                   </Box>
                 )}
 
@@ -478,7 +505,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   </Typography>
                 ) : (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {additionalProperties.map(({ property, value, isActive, defaultValue }) => (
+                    {additionalProperties.map(({ property, value, isActive, defaultValue }, index) => (
                       <Card key={property.id} variant="outlined">
                         <CardContent>
                           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -508,6 +535,24 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                 size="small"
                                 variant="outlined"
                               />
+                              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => moveProperty(index, 'up')}
+                                  disabled={index === 0}
+                                  title="Переместить выше"
+                                >
+                                  <UpIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => moveProperty(index, 'down')}
+                                  disabled={index === additionalProperties.length - 1}
+                                  title="Переместить ниже"
+                                >
+                                  <DownIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
                               <IconButton
                                 size="small"
                                 color="error"

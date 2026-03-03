@@ -16,11 +16,13 @@ import type { Property, PropertyDependency } from '@shared/api/property/types';
 
 interface DynamicPropertyFormProps {
     headerId: number;
+    productId?: number;
     values: OrderPropertyDto[];
     onChange: (values: OrderPropertyDto[]) => void;
+    productProperties?: any[]; // Свойства из номенклатуры для доп. сортировки
 }
 
-export const DynamicPropertyForm = ({ headerId, values, onChange }: DynamicPropertyFormProps) => {
+export const DynamicPropertyForm = ({ headerId, productId, values, onChange, productProperties = [] }: DynamicPropertyFormProps) => {
     const [loading, setLoading] = useState(true);
     const [properties, setProperties] = useState<Property[]>([]);
     const [dependencies, setDependencies] = useState<PropertyDependency[]>([]);
@@ -43,15 +45,37 @@ export const DynamicPropertyForm = ({ headerId, values, onChange }: DynamicPrope
             // 2. Получаем все свойства
             const allProps = await propertyApi.getProperties();
 
-            // 3. Фильтруем свойства, которые есть в шапке
+            // 3. Фильтруем свойства, которые есть в шапке или уже выбраны для позиции
             const headerPropIds = new Set(items.map((i) => i.propertyId));
-            const filteredProps = allProps.filter((p: Property) => headerPropIds.has(p.id));
+            const valuePropIds = new Set(valuesRef.current.map(v => v.propertyId));
+            const filteredProps = allProps.filter((p: Property) => headerPropIds.has(p.id) || valuePropIds.has(p.id));
 
-            // 4. Сортируем по sortOrder шапки
+            // 4. Сортируем: 
+            // - Сначала те, что есть в шапке (по sortOrder)
+            // - Затем те, что есть в номенклатуре (по displayOrder)
+            // - Затем остальные (по ID)
             const sortedProps = filteredProps.sort((a: Property, b: Property) => {
                 const itemA = items.find(i => i.propertyId === a.id);
                 const itemB = items.find(i => i.propertyId === b.id);
-                return (itemA?.sortOrder || 0) - (itemB?.sortOrder || 0);
+
+                if (itemA || itemB) {
+                    // Если хотя бы одно в шапке
+                    const orderA = itemA ? itemA.sortOrder : 1000;
+                    const orderB = itemB ? itemB.sortOrder : 1000;
+                    if (orderA !== orderB) return orderA - orderB;
+                }
+
+                // Если оба не в шапке или порядок одинаковый, смотрим на номенклатуру
+                const prodPropA = productProperties.find(p => p.propertyId === a.id);
+                const prodPropB = productProperties.find(p => p.propertyId === b.id);
+
+                if (prodPropA || prodPropB) {
+                    const orderA = prodPropA ? prodPropA.displayOrder : 2000;
+                    const orderB = prodPropB ? prodPropB.displayOrder : 2000;
+                    if (orderA !== orderB) return orderA - orderB;
+                }
+
+                return a.id - b.id;
             });
 
             setProperties(sortedProps);
@@ -84,6 +108,19 @@ export const DynamicPropertyForm = ({ headerId, values, onChange }: DynamicPrope
             loadPropertiesAndDependencies();
         }
     }, [headerId, refreshKey, loadPropertiesAndDependencies]);
+
+    // Если снаружи добавили новое свойство (например, через модальное окно деталей позиции),
+    // нам нужно перезагрузить или перефильтровать список. Проверяем, появились ли новые propertyId:
+    useEffect(() => {
+        if (properties.length > 0 && values.length > 0) {
+            const currentPropIds = new Set(properties.map(p => p.id));
+            const hasNewProperty = values.some(v => !currentPropIds.has(v.propertyId));
+            if (hasNewProperty) {
+                console.log("New property detected in values, reloading properties...");
+                loadPropertiesAndDependencies();
+            }
+        }
+    }, [values, properties, loadPropertiesAndDependencies]);
 
     const handleRefresh = () => {
         setRefreshKey(prev => prev + 1);

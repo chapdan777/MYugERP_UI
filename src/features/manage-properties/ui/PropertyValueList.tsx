@@ -76,11 +76,23 @@ export const PropertyValueList: React.FC<PropertyValueListProps> = ({ propertyId
         if (!editingId || !editValue.trim()) return;
 
         try {
-            await updatePropertyValue(editingId, propertyId, {
-                value: editValue.trim(),
-                priceModifierValue: editMarkup || undefined,
-                priceModifierId: null
-            });
+            if (editingId < 0) {
+                // Если ID отрицательный - это виртуальное значение (Да/Нет или из JSON),
+                // создаем новую запись в БД вместо обновления
+                await createPropertyValue({
+                    propertyId,
+                    value: editValue.trim(),
+                    priceModifierValue: editMarkup || undefined,
+                    priceModifierId: null,
+                    displayOrder: propertyValues.length
+                });
+            } else {
+                await updatePropertyValue(editingId, propertyId, {
+                    value: editValue.trim(),
+                    priceModifierValue: editMarkup || undefined,
+                    priceModifierId: null
+                });
+            }
             setEditingId(null);
         } catch (error) {
             console.error('Failed to update value', error);

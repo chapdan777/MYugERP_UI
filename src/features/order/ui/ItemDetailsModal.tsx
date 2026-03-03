@@ -11,6 +11,13 @@ import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
+import { useGetProductProperties } from '../../manage-products/model/product.hooks';
+import { propertyApi } from '@shared/api/property';
+import type { Property } from '@shared/api/property/types';
 import type { CreateOrderItemDto, OrderPropertyDto } from '@shared/api/order/types';
 import type { PriceCalculationResult } from '@shared/api/pricing/types';
 import { pricingApi } from '@shared/api/pricing';
@@ -44,6 +51,64 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
     useEffect(() => {
         setLocalCalcResult(calculationResult);
     }, [calculationResult]);
+
+    const { getProductProperties } = useGetProductProperties();
+    const [allProperties, setAllProperties] = useState<Property[]>([]);
+    const [productProps, setProductProps] = useState<any[]>([]);
+    const [selectedPropToAdd, setSelectedPropToAdd] = useState<string>('');
+
+    // Fetch product and global properties on open
+    useEffect(() => {
+        if (open && localItem?.productId) {
+            Promise.all([
+                getProductProperties(Number(localItem.productId)),
+                propertyApi.getProperties()
+            ]).then(([pProps, aProps]) => {
+                setProductProps(pProps);
+                setAllProperties(aProps);
+            }).catch(err => console.error("Failed to load properties for modal:", err));
+        }
+    }, [open, localItem?.productId]);
+
+    // Вычисляем доступные для добавления свойства: берем свойства, привязанные к этому продукту, но еще не добавленные позицию
+    const availablePropertiesToAdd = productProps.filter((pp: any) => {
+        // Убираем те, что уже добавлены в позицию
+        const isAlreadyAdded = localItem?.properties?.some((p: any) => p.propertyId === pp.propertyId);
+        if (isAlreadyAdded) return false;
+
+        // Также проверим, существует ли это свойство в глобальном справочнике
+        const propGlobal = allProperties.find(gp => gp.id === pp.propertyId);
+        if (!propGlobal) return false;
+
+        return true;
+    }).map((pp: any) => {
+        const propGlobal = allProperties.find(gp => gp.id === pp.propertyId);
+        return {
+            propertyId: pp.propertyId,
+            name: propGlobal?.name || `Property ${pp.propertyId}`,
+            code: propGlobal?.code || '',
+            defaultValue: pp.defaultValue || propGlobal?.defaultValue || ''
+        };
+    });
+
+    const handleAddProperty = () => {
+        if (!selectedPropToAdd || !localItem) return;
+
+        const propId = Number(selectedPropToAdd);
+        const propToAdd = availablePropertiesToAdd.find(p => p.propertyId === propId);
+        if (!propToAdd) return;
+
+        const newProp: OrderPropertyDto = {
+            propertyId: propToAdd.propertyId,
+            propertyName: propToAdd.name,
+            propertyCode: propToAdd.code,
+            value: propToAdd.defaultValue || ''
+        };
+
+        const newProperties = [...(localItem.properties || []), newProp];
+        handlePropertiesChange(newProperties);
+        setSelectedPropToAdd('');
+    };
 
     const handleRecalculate = useCallback(async () => {
         if (!localItem) return;
@@ -134,16 +199,52 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
                         Дополнительные свойства
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" paragraph>
-                        Здесь можно активировать или изменить свойства конкретно для этой позиции.
-                        Значения, установленные здесь, переопределяют значения секции.
-                    </Typography>
 
                     <DynamicPropertyForm
                         headerId={headerId}
+                        productId={Number(localItem.productId)}
                         values={localItem.properties || []}
                         onChange={handlePropertiesChange}
+                        productProperties={productProps}
                     />
+
+                    <Typography variant="body2" color="text.secondary" paragraph sx={{ mt: 3 }}>
+                        В выпадающем списке ниже доступны к активации дополнительные (скрытые) свойства, предусмотренные номенклатурой.
+                    </Typography>
+
+                    {availablePropertiesToAdd.length > 0 ? (
+                        <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'flex-end', bgcolor: 'rgba(255,255,255,0.02)', p: 1.5, borderRadius: 1, border: '1px dashed', borderColor: 'divider' }}>
+                            <FormControl size="small" sx={{ minWidth: 200, flex: 1 }}>
+                                <InputLabel id="add-prop-label">Доступные свойства</InputLabel>
+                                <Select
+                                    labelId="add-prop-label"
+                                    value={selectedPropToAdd}
+                                    label="Доступные свойства"
+                                    onChange={(e) => setSelectedPropToAdd(e.target.value)}
+                                >
+                                    {availablePropertiesToAdd.map(p => (
+                                        <MenuItem key={p.propertyId} value={p.propertyId}>
+                                            {p.name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <Button
+                                variant="contained"
+                                size="small"
+                                color="primary"
+                                onClick={handleAddProperty}
+                                disabled={!selectedPropToAdd}
+                                sx={{ height: 40 }}
+                            >
+                                Активировать
+                            </Button>
+                        </Box>
+                    ) : (
+                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', display: 'block', mb: 1 }}>
+                            Доступных для активации свойств нет
+                        </Typography>
+                    )}
                 </Box>
 
                 {localCalcResult && (

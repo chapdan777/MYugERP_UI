@@ -44,7 +44,7 @@ export const OrderHeaderForm = ({ initialData, onChange }: OrderHeaderFormProps)
 
   const navigate = useNavigate();
   const { users, isLoading: isLoadingUsers } = useUsers();
-  const clients = users?.filter(u => u.role === 'CLIENT') || [];
+  const clients = users?.filter(u => String(u.role).toUpperCase() === 'CLIENT') || [];
 
   // Синхронизация при изменении initialData (например после загрузки заказа или восстановления черновика)
   useEffect(() => {
@@ -61,6 +61,20 @@ export const OrderHeaderForm = ({ initialData, onChange }: OrderHeaderFormProps)
       }));
     }
   }, [initialData]);
+
+  // Проверка на наличие текущего выбранного клиента в списке и дедлайна
+  const isClientInList = clients.some(c => c.fullName === formData.clientName);
+  const isDeadlineInOptions = deadlineOptions.includes(formData.deadline);
+
+  // Если клиент из заказа не найден в списке пользователей - добавим его как временную опцию
+  const extraClientOption = (!isClientInList && formData.clientName && formData.clientName !== 'CREATE_NEW_CLIENT')
+    ? formData.clientName
+    : null;
+
+  // Аналогично для срока (если там дата вместо интервала)
+  const extraDeadlineOption = (!isDeadlineInOptions && formData.deadline)
+    ? formData.deadline
+    : null;
 
   const handleChange = (field: keyof OrderFormData, value: string) => {
     const newData = { ...formData, [field]: value };
@@ -116,6 +130,11 @@ export const OrderHeaderForm = ({ initialData, onChange }: OrderHeaderFormProps)
                 {client.fullName}
               </MenuItem>
             ))}
+            {extraClientOption && (
+              <MenuItem value={extraClientOption} disabled sx={{ fontStyle: 'italic' }}>
+                {extraClientOption} (из базы)
+              </MenuItem>
+            )}
             <MenuItem value="CREATE_NEW_CLIENT" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
               + Добавить клиента
             </MenuItem>
@@ -168,6 +187,11 @@ export const OrderHeaderForm = ({ initialData, onChange }: OrderHeaderFormProps)
                 {option}
               </MenuItem>
             ))}
+            {extraDeadlineOption && (
+              <MenuItem value={extraDeadlineOption} sx={{ fontStyle: 'italic' }}>
+                {extraDeadlineOption}
+              </MenuItem>
+            )}
           </TextField>
         </Grid>
 

@@ -25,6 +25,8 @@ import {
     Step,
     StepLabel,
     alpha,
+    Collapse,
+    IconButton,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -39,6 +41,13 @@ import StraightenIcon from '@mui/icons-material/Straighten';
 import CategoryIcon from '@mui/icons-material/Category';
 import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
 import BuildIcon from '@mui/icons-material/Build';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import LayersIcon from '@mui/icons-material/Layers';
+import { ToggleButton, ToggleButtonGroup, FormControlLabel, Switch } from '@mui/material';
 
 import { GlassCard } from '../../shared/ui';
 import {
@@ -102,8 +111,23 @@ const InfoTile: React.FC<InfoTileProps> = ({ icon, label, value, accent }) => (
                 {value}
             </Typography>
         </Box>
-    </Box>
+    </Box >
 );
+
+/* ──────────────────────────────────────────────────────── */
+
+const parseCalculatedMaterials = (mats: any) => {
+    if (!mats) return { components: [], dimensions: {}, materials: [] };
+    if (typeof mats === 'string') {
+        try {
+            return JSON.parse(mats);
+        } catch (e) {
+            console.error('Failed to parse calculatedMaterials:', e);
+            return { components: [], dimensions: {}, materials: [] };
+        }
+    }
+    return mats;
+};
 
 /* ─── TabPanel ─────────────────────────────────────────── */
 
@@ -115,12 +139,181 @@ function TabPanel({ children, value, index }: { children?: React.ReactNode; inde
     );
 }
 
+/* ─── WorkOrderItemRow ─────────────────────────────────── */
+
+function WorkOrderItemRow({ item, idx }: { item: any, idx: number }) {
+    const [open, setOpen] = useState(false);
+
+    const calc = parseCalculatedMaterials(item.calculatedMaterials);
+    const dims = calc.dimensions;
+    const mats: any[] = Array.isArray(calc.materials) ? calc.materials : [];
+    const comps: any[] = Array.isArray(calc.components) ? calc.components : [];
+
+    const hasDims = dims && (dims.height > 0 || dims.width > 0);
+    const hasComps = comps.length > 0;
+
+    // Автоматически открываем аккордеон, если это ЗН "Деталировка (BOM)" или компонентов мало
+    React.useEffect(() => {
+        if (hasComps && (item.operationName === 'BOM-расчёт деталей' || comps.length <= 10)) {
+            setOpen(true);
+        }
+    }, [hasComps, item.operationName, comps.length]);
+
+    return (
+        <React.Fragment>
+            <TableRow sx={{ '&:last-child col': { borderBottom: 0 }, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1, borderBottom: open ? 'none' : undefined }}>
+                    {hasComps ? (
+                        <IconButton size="small" onClick={() => setOpen(!open)} sx={{ color: '#94a3b8', p: 0.5, ml: -1 }}>
+                            {open ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+                        </IconButton>
+                    ) : (
+                        <Box sx={{ width: 26, ml: -1 }} /> /* Placeholder for alignment */
+                    )}
+                    <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>{idx + 1}</Typography>
+                </TableCell>
+                <TableCell sx={{ borderBottom: open ? 'none' : undefined }}>
+                    <Typography variant="body2" sx={{ color: '#f1f5f9', fontWeight: 600 }}>
+                        {item.productName || 'Без названия'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#475569' }}>ID: {item.productId}</Typography>
+                </TableCell>
+                <TableCell align="center" sx={{ borderBottom: open ? 'none' : undefined }}>
+                    <Chip
+                        size="small"
+                        label={`${item.quantity} ${item.unit}`}
+                        sx={{ bgcolor: 'rgba(56,189,248,0.1)', color: '#38bdf8', fontWeight: 600, fontSize: '0.75rem' }}
+                    />
+                </TableCell>
+                <TableCell align="center" sx={{ borderBottom: open ? 'none' : undefined }}>
+                    {hasDims ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                            <StraightenIcon sx={{ fontSize: 14, color: '#64748b' }} />
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#cbd5e1', fontWeight: 500 }}>
+                                {dims.height}×{dims.width}
+                                {dims.depth > 0 ? `×${dims.depth}` : ''}
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <Typography variant="caption" sx={{ color: '#475569' }}>—</Typography>
+                    )}
+                </TableCell>
+                <TableCell align="right" sx={{ borderBottom: open ? 'none' : undefined }}>
+                    <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 700, color: item.estimatedHours > 0 ? '#38bdf8' : '#475569' }}
+                    >
+                        {item.estimatedHours > 0 ? `${item.estimatedHours} ч` : '—'}
+                    </Typography>
+                </TableCell>
+                <TableCell align="right" sx={{ borderBottom: open ? 'none' : undefined }}>
+                    <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 600, color: item.pieceRate > 0 ? '#22c55e' : '#475569' }}
+                    >
+                        {item.pieceRate > 0 ? `${item.pieceRate} ₽` : '—'}
+                    </Typography>
+                </TableCell>
+                <TableCell sx={{ borderBottom: open ? 'none' : undefined }}>
+                    {mats.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            {mats.map((m: any, mi: number) => (
+                                <Chip
+                                    key={mi}
+                                    size="small"
+                                    icon={<CategoryIcon sx={{ fontSize: '14px !important' }} />}
+                                    label={`${m.materialName}: ${m.quantity} ${m.unit}`}
+                                    variant="outlined"
+                                    sx={{
+                                        borderColor: 'rgba(148,163,184,0.2)',
+                                        color: '#94a3b8',
+                                        fontSize: '0.7rem',
+                                        height: 24,
+                                        '& .MuiChip-icon': { color: '#64748b' },
+                                    }}
+                                />
+                            ))}
+                        </Box>
+                    ) : (
+                        <Typography variant="caption" sx={{ color: '#475569' }}>—</Typography>
+                    )}
+                </TableCell>
+            </TableRow>
+            {hasComps && (
+                <TableRow>
+                    <TableCell style={{ paddingBottom: 0, paddingTop: 0, borderBottom: open ? '1px solid rgba(81, 81, 81, 1)' : 'none' }} colSpan={7}>
+                        <Collapse in={open} timeout="auto" unmountOnExit>
+                            <Box sx={{ margin: 1.5, mb: 2, p: 2, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <Typography variant="caption" sx={{ color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, mb: 1, display: 'block' }}>
+                                    СПЕЦИФИКАЦИЯ ДЕТАЛЕЙ ДЛЯ ИЗДЕЛИЯ (BOM)
+                                </Typography>
+                                <Table size="small" aria-label="components" sx={{ '& .MuiTableCell-root': { borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#cbd5e1', py: 1.5 } }}>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem' }}>Деталь / Компонент</TableCell>
+                                            <TableCell align="center" sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Длина</TableCell>
+                                            <TableCell align="center" sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Ширина</TableCell>
+                                            <TableCell align="center" sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Толщина</TableCell>
+                                            <TableCell align="right" sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Кол-во</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {comps.map((comp, i) => (
+                                            <TableRow key={i} sx={{ '&:last-child td': { borderBottom: 0 }, '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
+                                                <TableCell>
+                                                    <Typography variant="body2" sx={{ color: '#e2e8f0', fontWeight: 500 }}>
+                                                        {comp.name}
+                                                    </Typography>
+                                                    {comp.childProductName && (
+                                                        <Typography variant="caption" sx={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                                                            <Box component="span" sx={{ display: 'inline-block', width: 4, height: 4, borderRadius: '50%', bgcolor: '#38bdf8' }} />
+                                                            Вложенный продукт: <span style={{ color: '#94a3b8' }}>{comp.childProductName}</span>
+                                                        </Typography>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                                                        {comp.length > 0 ? `${comp.length} мм` : '—'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                                                        {comp.width > 0 ? `${comp.width} мм` : '—'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                                                        {comp.depth > 0 ? `${comp.depth} мм` : '—'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                    <Chip
+                                                        size="small"
+                                                        label={`${comp.quantity} шт`}
+                                                        sx={{ bgcolor: 'rgba(234,179,8,0.1)', color: '#eab308', fontWeight: 600, fontSize: '0.75rem', height: 22 }}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </Box>
+                        </Collapse>
+                    </TableCell>
+                </TableRow>
+            )}
+        </React.Fragment>
+    );
+}
+
 /* ─── Page ─────────────────────────────────────────────── */
 
 export const WorkOrderDetailsPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [tabValue, setTabValue] = useState(0);
+    const [positionsViewMode, setPositionsViewMode] = useState<'products' | 'components'>('products');
+    const [groupComponents, setGroupComponents] = useState(false);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
 
@@ -329,101 +522,186 @@ export const WorkOrderDetailsPage = () => {
                     {/* ── Positions tab ── */}
                     <TabPanel value={tabValue} index={1}>
                         <Box sx={{ px: { xs: 1, md: 3 }, pb: 3 }}>
-                            <TableContainer sx={{ backgroundColor: 'transparent', boxShadow: 'none', border: 'none', backdropFilter: 'none' }}>
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell sx={{ width: 40 }}>№</TableCell>
-                                            <TableCell>Продукт</TableCell>
-                                            <TableCell align="center">Кол-во</TableCell>
-                                            <TableCell align="center">Габариты</TableCell>
-                                            <TableCell align="right">Норма</TableCell>
-                                            <TableCell align="right">Ставка</TableCell>
-                                            <TableCell>Материалы</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {workOrder.items.map((item, idx) => {
-                                            const dims = (item.calculatedMaterials as any)?.dimensions;
-                                            const mats: any[] = Array.isArray((item.calculatedMaterials as any)?.materials) ? (item.calculatedMaterials as any).materials : [];
-                                            const hasDims = dims && (dims.height > 0 || dims.width > 0);
+                            {/* Toolbar for Positions tab */}
+                            <Box sx={{
+                                mb: 2.5,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                                gap: 2,
+                                bgcolor: 'rgba(255,255,255,0.02)',
+                                p: 1.5,
+                                borderRadius: 2,
+                                border: '1px solid rgba(255,255,255,0.05)'
+                            }}>
+                                <ToggleButtonGroup
+                                    value={positionsViewMode}
+                                    exclusive
+                                    onChange={(_e, val) => val && setPositionsViewMode(val)}
+                                    size="small"
+                                    sx={{
+                                        '& .MuiToggleButton-root': {
+                                            color: '#64748b',
+                                            borderColor: 'rgba(148,163,184,0.2)',
+                                            px: 2,
+                                            '&.Mui-selected': {
+                                                color: '#38bdf8',
+                                                bgcolor: 'rgba(56,189,248,0.1)',
+                                                '&:hover': { bgcolor: 'rgba(56,189,248,0.15)' }
+                                            }
+                                        }
+                                    }}
+                                >
+                                    <ToggleButton value="products">
+                                        <ViewModuleIcon sx={{ mr: 1, fontSize: 18 }} />
+                                        По изделиям
+                                    </ToggleButton>
+                                    <ToggleButton value="components">
+                                        <ViewListIcon sx={{ mr: 1, fontSize: 18 }} />
+                                        Списком деталей
+                                    </ToggleButton>
+                                </ToggleButtonGroup>
 
-                                            return (
-                                                <TableRow key={item.id} sx={{ '&:last-child td': { borderBottom: 0 }, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
-                                                    <TableCell>
-                                                        <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>{idx + 1}</Typography>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="body2" sx={{ color: '#f1f5f9', fontWeight: 600 }}>
-                                                            {item.productName || 'Без названия'}
-                                                        </Typography>
-                                                        <Typography variant="caption" sx={{ color: '#475569' }}>ID: {item.productId}</Typography>
-                                                    </TableCell>
-                                                    <TableCell align="center">
-                                                        <Chip
-                                                            size="small"
-                                                            label={`${item.quantity} ${item.unit}`}
-                                                            sx={{ bgcolor: 'rgba(56,189,248,0.1)', color: '#38bdf8', fontWeight: 600, fontSize: '0.75rem' }}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell align="center">
-                                                        {hasDims ? (
-                                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                                                                <StraightenIcon sx={{ fontSize: 14, color: '#64748b' }} />
-                                                                <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#cbd5e1', fontWeight: 500 }}>
-                                                                    {dims.height}×{dims.width}
-                                                                    {dims.depth > 0 ? `×${dims.depth}` : ''}
+                                {positionsViewMode === 'components' && (
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                size="small"
+                                                checked={groupComponents}
+                                                onChange={(e) => setGroupComponents(e.target.checked)}
+                                                sx={{
+                                                    '& .MuiSwitch-switchBase.Mui-checked': { color: '#38bdf8' },
+                                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: '#38bdf8' }
+                                                }}
+                                            />
+                                        }
+                                        label={
+                                            <Typography variant="body2" sx={{ color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <LayersIcon sx={{ fontSize: 16 }} />
+                                                Группировать детали
+                                            </Typography>
+                                        }
+                                    />
+                                )}
+                            </Box>
+
+                            <TableContainer sx={{ backgroundColor: 'transparent', boxShadow: 'none', border: 'none', backdropFilter: 'none' }}>
+                                {positionsViewMode === 'products' ? (
+                                    <Table size="small">
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell sx={{ width: 40 }}>№</TableCell>
+                                                <TableCell>Продукт</TableCell>
+                                                <TableCell align="center">Кол-во</TableCell>
+                                                <TableCell align="center">Габариты</TableCell>
+                                                <TableCell align="right">Норма</TableCell>
+                                                <TableCell align="right">Ставка</TableCell>
+                                                <TableCell>Материалы</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {workOrder.items.map((item, idx) => (
+                                                <WorkOrderItemRow key={item.id} item={item} idx={idx} />
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                ) : (
+                                    /* Flat Components List */
+                                    <Table size="small">
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell>Деталь / Компонент</TableCell>
+                                                {!groupComponents && <TableCell>Изделие-родитель</TableCell>}
+                                                <TableCell align="center">Длина</TableCell>
+                                                <TableCell align="center">Ширина</TableCell>
+                                                <TableCell align="center">Толщина</TableCell>
+                                                <TableCell align="right">Всего шт</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {(() => {
+                                                const allComps: any[] = [];
+                                                workOrder.items.forEach((item, itemIdx) => {
+                                                    const calc = parseCalculatedMaterials(item.calculatedMaterials);
+                                                    const comps = calc.components || [];
+                                                    comps.forEach((c: any) => {
+                                                        allComps.push({
+                                                            ...c,
+                                                            parentName: item.productName,
+                                                            parentIdx: itemIdx + 1,
+                                                            itemQuantity: item.quantity
+                                                        });
+                                                    });
+                                                });
+
+                                                if (allComps.length === 0) {
+                                                    return (
+                                                        <TableRow>
+                                                            <TableCell colSpan={groupComponents ? 5 : 6} align="center" sx={{ py: 6 }}>
+                                                                <Typography color="#64748b" variant="body2">
+                                                                    Детали не расчитаны для данного заказа.
+                                                                    Проверьте наличие тех. схем (BOM) для выбранных изделий.
                                                                 </Typography>
-                                                            </Box>
-                                                        ) : (
-                                                            <Typography variant="caption" sx={{ color: '#475569' }}>—</Typography>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell align="right">
-                                                        <Typography
-                                                            variant="body2"
-                                                            sx={{ fontWeight: 700, color: item.estimatedHours > 0 ? '#38bdf8' : '#475569' }}
-                                                        >
-                                                            {item.estimatedHours > 0 ? `${item.estimatedHours} ч` : '—'}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell align="right">
-                                                        <Typography
-                                                            variant="body2"
-                                                            sx={{ fontWeight: 600, color: item.pieceRate > 0 ? '#22c55e' : '#475569' }}
-                                                        >
-                                                            {item.pieceRate > 0 ? `${item.pieceRate} ₽` : '—'}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {mats.length > 0 ? (
-                                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                                                {mats.map((m: any, mi: number) => (
-                                                                    <Chip
-                                                                        key={mi}
-                                                                        size="small"
-                                                                        icon={<CategoryIcon sx={{ fontSize: '14px !important' }} />}
-                                                                        label={`${m.materialName}: ${m.quantity} ${m.unit}`}
-                                                                        variant="outlined"
-                                                                        sx={{
-                                                                            borderColor: 'rgba(148,163,184,0.2)',
-                                                                            color: '#94a3b8',
-                                                                            fontSize: '0.7rem',
-                                                                            height: 24,
-                                                                            '& .MuiChip-icon': { color: '#64748b' },
-                                                                        }}
-                                                                    />
-                                                                ))}
-                                                            </Box>
-                                                        ) : (
-                                                            <Typography variant="caption" sx={{ color: '#475569' }}>—</Typography>
-                                                        )}
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                }
+
+                                                if (groupComponents) {
+                                                    const grouped = allComps.reduce((acc: any[], curr) => {
+                                                        const key = `${curr.name}_${curr.length}_${curr.width}_${curr.depth}`;
+                                                        const existing = acc.find(a => a.key === key);
+                                                        if (existing) {
+                                                            existing.quantity += curr.quantity;
+                                                        } else {
+                                                            acc.push({ ...curr, key });
+                                                        }
+                                                        return acc;
+                                                    }, []);
+                                                    // Sort by name, then length desc
+                                                    grouped.sort((a, b) => a.name.localeCompare(b.name) || b.length - a.length);
+
+                                                    return grouped.map((comp, i) => (
+                                                        <TableRow key={i} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                                                            <TableCell sx={{ py: 1.5 }}>
+                                                                <Typography variant="body2" sx={{ color: '#f1f5f9', fontWeight: 600 }}>{comp.name}</Typography>
+                                                                {comp.childProductName && <Typography variant="caption" sx={{ color: '#64748b' }}>{comp.childProductName}</Typography>}
+                                                            </TableCell>
+                                                            <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.length} мм</TableCell>
+                                                            <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.width} мм</TableCell>
+                                                            <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.depth || '—'}</TableCell>
+                                                            <TableCell align="right">
+                                                                <Chip size="small" label={`${comp.quantity} шт`} sx={{ bgcolor: 'rgba(234,179,8,0.1)', color: '#eab308', fontWeight: 700 }} />
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ));
+                                                }
+
+                                                // Individual view (preserving parent grouping by default)
+                                                return allComps.map((comp, i) => (
+                                                    <TableRow key={i} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                                                        <TableCell sx={{ py: 1.5 }}>
+                                                            <Typography variant="body2" sx={{ color: '#f1f5f9', fontWeight: 600 }}>{comp.name}</Typography>
+                                                            {comp.childProductName && <Typography variant="caption" sx={{ color: '#64748b' }}>{comp.childProductName}</Typography>}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography variant="caption" sx={{ color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                                <Box component="span" sx={{ color: '#64748b' }}>#{comp.parentIdx}</Box> {comp.parentName}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.length} мм</TableCell>
+                                                        <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.width} мм</TableCell>
+                                                        <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.depth || '—'}</TableCell>
+                                                        <TableCell align="right">
+                                                            <Chip size="small" label={`${comp.quantity} шт`} sx={{ bgcolor: 'rgba(56,189,248,0.1)', color: '#38bdf8', fontWeight: 600 }} />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ));
+                                            })()}
+                                        </TableBody>
+                                    </Table>
+                                )}
                             </TableContainer>
 
                             {/* summary row */}

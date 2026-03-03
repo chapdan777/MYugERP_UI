@@ -147,6 +147,11 @@ export const useGenerateWorkOrders = () => {
             const response = await apiClient.post<WorkOrderResponseDto[]>(`${WORK_ORDERS_API_URL}/generate`, { orderId });
             await mutate(WORK_ORDERS_API_URL);
             return response.data;
+        },
+        regenerateWorkOrders: async (orderId: number) => {
+            const response = await apiClient.post<WorkOrderResponseDto[]>(`${WORK_ORDERS_API_URL}/regenerate`, { orderId });
+            await mutate(WORK_ORDERS_API_URL);
+            return response.data;
         }
     };
 };

@@ -46,6 +46,9 @@ export interface UpdateProductInput {
   basePrice?: number;
   unit?: string;
   category?: string;
+  defaultLength?: number;
+  defaultWidth?: number;
+  defaultDepth?: number;
 }
 
 export interface OperationMaterial {

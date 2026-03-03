@@ -26,6 +26,7 @@ import { useWorkOrders, useGenerateWorkOrders } from '@features/manage-work-orde
 import { propertyHeadersApi } from '@shared/api/property-headers';
 import type { PropertyHeader } from '@shared/api/property-headers/types';
 import { useOrderDraft, hasDraft, getDraft, clearDraft } from '@features/order/model/useOrderDraft';
+import { useUsers } from '@features/manage-users/model/user.hooks';
 
 const EMPTY_HEADER: OrderFormData = {
   documentType: 'Фасады',
@@ -69,7 +70,7 @@ export const OrderPage = () => {
   // Work Orders Logic
   const parsedId = id ? parseInt(id) : undefined;
   const { workOrders } = useWorkOrders(parsedId ? { orderId: parsedId } : { orderId: -1 });
-  const { generateWorkOrders } = useGenerateWorkOrders();
+  const { generateWorkOrders, regenerateWorkOrders } = useGenerateWorkOrders();
   const [isGeneratingWO, setIsGeneratingWO] = useState(false);
 
   const handleGenerateWO = async () => {
@@ -80,6 +81,21 @@ export const OrderPage = () => {
       setNotification({ open: true, message: 'Заказ-наряды сгенерированы', severity: 'success' });
     } catch (e) {
       setNotification({ open: true, message: 'Ошибка генерации ЗН', severity: 'error' });
+    } finally {
+      setIsGeneratingWO(false);
+    }
+  };
+
+  const handleRegenerateWO = async () => {
+    if (!parsedId) return;
+    if (!window.confirm('Это действие отменит текущие заказ-наряды и создаст новые. Продолжить?')) return;
+
+    setIsGeneratingWO(true);
+    try {
+      await regenerateWorkOrders(parsedId);
+      setNotification({ open: true, message: 'Заказ-наряды перегенерированы', severity: 'success' });
+    } catch (e) {
+      setNotification({ open: true, message: 'Ошибка перегенерации ЗН', severity: 'error' });
     } finally {
       setIsGeneratingWO(false);
     }
@@ -207,13 +223,21 @@ export const OrderPage = () => {
     setSections(newSections);
   };
 
+  const { users } = useUsers();
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // Пытаемся найти ID выбранного клиента
+      const selectedClient = users?.find(u => u.fullName === headerData.clientName);
+      const clientId: number = Number(selectedClient?.id || 1); // 1 - Default fallback
+
       const orderDto: CreateOrderDto = {
-        clientId: 1, // Placeholder
+        clientId,
         clientName: headerData.clientName || 'Без названия',
-        deadline: new Date().toISOString(),
+        deadline: headerData.deadline.includes('дней')
+          ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // Placeholder logic for now
+          : new Date().toISOString(),
         notes: `Заказ: ${headerData.orderName || 'Новый'}`,
         sections: sections
       };
@@ -235,6 +259,13 @@ export const OrderPage = () => {
     }
   };
 
+  const handleSaveAsNew = async () => {
+    // Просто сбрасываем ID и номер строки, чтобы handleSave создал новый объект
+    setHeaderData(prev => ({ ...prev, lineNumber: '' }));
+    navigate('/orders/create'); // Меняем путь, чтобы сработал режим создания
+    setNotification({ open: true, message: 'Заказ скопирован в новый. Отредактируйте и нажмите Сохранить.', severity: 'success' });
+  };
+
   if (isBindingLoading) {
     return (
       <MainLayout orderNumber="LOADING...">
@@ -253,9 +284,11 @@ export const OrderPage = () => {
       isSaving={isSaving}
       onAddSection={() => setIsAddingSection(true)}
       onGenerateWorkOrder={isEditMode && parsedId ? handleGenerateWO : undefined}
+      onRegenerateWorkOrder={isEditMode && parsedId ? handleRegenerateWO : undefined}
       isGeneratingWO={isGeneratingWO}
       onNavigateWorkOrders={isEditMode && parsedId ? () => navigate(`/work-orders?orderId=${parsedId}`) : undefined}
       workOrdersCount={workOrders?.length}
+      onSaveAsNew={isEditMode ? handleSaveAsNew : undefined}
     >
       <Box sx={{ maxWidth: 1400, mx: 'auto', p: 2 }}>
         {/* Technical Header */}

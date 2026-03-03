@@ -12,18 +12,20 @@ import {
     Typography,
     Chip
 } from '@mui/material';
-import { Delete as DeleteIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, ContentCopy as ContentCopyIcon } from '@mui/icons-material';
 import type { PropertyDependency } from '../model/types';
 import { useProperties } from '../../manage-properties/model/property.hooks';
 
 interface PropertyDependenciesTableProps {
     dependencies: PropertyDependency[];
     onDelete: (id: number) => void;
+    onCopy?: (dependency: PropertyDependency) => void;
 }
 
 export const PropertyDependenciesTable: React.FC<PropertyDependenciesTableProps> = ({
     dependencies,
-    onDelete
+    onDelete,
+    onCopy
 }) => {
     const { properties } = useProperties();
 
@@ -82,6 +84,13 @@ export const PropertyDependenciesTable: React.FC<PropertyDependenciesTableProps>
                                 )}
                             </TableCell>
                             <TableCell align="right">
+                                {onCopy && (
+                                    <Tooltip title="Копировать все связанные целевые свойства">
+                                        <IconButton onClick={() => onCopy(dep)} color="primary" size="small" sx={{ mr: 1 }}>
+                                            <ContentCopyIcon />
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
                                 <Tooltip title="Удалить зависимость">
                                     <IconButton onClick={() => onDelete(dep.id)} color="error" size="small">
                                         <DeleteIcon />

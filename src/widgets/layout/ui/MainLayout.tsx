@@ -22,9 +22,11 @@ interface MainLayoutProps {
   isSaving?: boolean;
   onAddSection?: () => void;
   onGenerateWorkOrder?: () => void;
+  onRegenerateWorkOrder?: () => void;
   isGeneratingWO?: boolean;
   onNavigateWorkOrders?: () => void;
   workOrdersCount?: number;
+  onSaveAsNew?: () => void;
 }
 
 /**
@@ -38,9 +40,11 @@ export const MainLayout = ({
   isSaving,
   onAddSection,
   onGenerateWorkOrder,
+  onRegenerateWorkOrder,
   isGeneratingWO,
   onNavigateWorkOrders,
   workOrdersCount,
+  onSaveAsNew,
 }: MainLayoutProps) => {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -51,9 +55,11 @@ export const MainLayout = ({
         isSaving={isSaving}
         onAddSection={onAddSection}
         onGenerateWorkOrder={onGenerateWorkOrder}
+        onRegenerateWorkOrder={onRegenerateWorkOrder}
         isGeneratingWO={isGeneratingWO}
         onNavigateWorkOrders={onNavigateWorkOrders}
         workOrdersCount={workOrdersCount}
+        onSaveAsNew={onSaveAsNew}
       />
       <Sidebar />
       <Box

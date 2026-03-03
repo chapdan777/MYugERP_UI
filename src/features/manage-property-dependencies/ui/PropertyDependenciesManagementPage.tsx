@@ -20,6 +20,7 @@ import { useProperties } from '../../manage-properties/model/property.hooks';
 import { usePropertyDependencies, usePropertyDependencyMutations } from '../model/hooks';
 import { PropertyDependenciesTable } from './PropertyDependenciesTable';
 import { PropertyDependencyForm } from './PropertyDependencyForm';
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 
 // Simple TabPanel component since I don't want to rely on shared one existance
 interface TabPanelProps {
@@ -51,6 +52,8 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
     const [selectedPropertyId, setSelectedPropertyId] = useState<number | ''>('');
     const [activeTab, setActiveTab] = useState(0);
     const [showForm, setShowForm] = useState(false);
+    const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+    const [initialTargets, setInitialTargets] = useState<any[] | undefined>(undefined);
 
     const { dependencies, isLoading: isLoadingDependencies, mutate } = usePropertyDependencies(
         selectedPropertyId ? Number(selectedPropertyId) : null
@@ -58,15 +61,33 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
 
     const { createDependency, deleteDependency } = usePropertyDependencyMutations();
 
-    const handleDelete = async (id: number) => {
-        if (window.confirm('Вы уверены, что хотите удалить эту зависимость?')) {
-            try {
-                await deleteDependency(id);
-                mutate();
-            } catch (error) {
-                console.error('Failed to delete dependency:', error);
-                alert('Ошибка при удалении зависимости');
-            }
+    const handleCopy = (dep: any) => {
+        // Находим все зависимости для того же исходного свойства и значения
+        const relatedDeps = dependencies?.asSource?.filter((d: any) =>
+            d.sourcePropertyId === dep.sourcePropertyId &&
+            d.sourceValue === dep.sourceValue
+        ) || [dep];
+
+        const targetsToCopy = relatedDeps.map((d: any) => ({
+            id: Date.now().toString() + Math.random().toString(),
+            targetPropertyId: d.targetPropertyId,
+            dependencyType: d.dependencyType,
+            targetValue: d.targetValue || ''
+        }));
+
+        setInitialTargets(targetsToCopy);
+        setShowForm(true);
+    };
+
+    const handleDelete = (id: number) => {
+        setDeleteTargetId(id);
+    };
+
+    const confirmDelete = async () => {
+        if (deleteTargetId !== null) {
+            await deleteDependency(deleteTargetId);
+            mutate();
+            setDeleteTargetId(null);
         }
     };
 
@@ -106,7 +127,10 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
                     {selectedPropertyId && (
                         <Button
                             variant="contained"
-                            onClick={() => setShowForm(true)}
+                            onClick={() => {
+                                setInitialTargets(undefined);
+                                setShowForm(true);
+                            }}
                         >
                             Добавить зависимость для этого свойства
                         </Button>
@@ -132,6 +156,7 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
                                     <PropertyDependenciesTable
                                         dependencies={dependencies?.asSource || []}
                                         onDelete={handleDelete}
+                                        onCopy={handleCopy}
                                     />
                                 </LocalTabPanel>
 
@@ -139,6 +164,7 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
                                     <PropertyDependenciesTable
                                         dependencies={dependencies?.asTarget || []}
                                         onDelete={handleDelete}
+                                    // Не даем копировать "как цель", так как там источник другой
                                     />
                                 </LocalTabPanel>
                             </Box>
@@ -153,20 +179,29 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
 
             <Dialog
                 open={showForm}
-                onClose={() => setShowForm(false)}
+                onClose={() => { setShowForm(false); setInitialTargets(undefined); }}
                 maxWidth="md"
                 fullWidth
             >
-                <DialogTitle>Создание новой зависимости</DialogTitle>
+                <DialogTitle>{initialTargets ? 'Копирование зависимости (Создание)' : 'Создание новой зависимости'}</DialogTitle>
                 <DialogContent>
                     <PropertyDependencyForm
                         initialSourcePropertyId={typeof selectedPropertyId === 'number' ? selectedPropertyId : undefined}
+                        initialTargets={initialTargets}
                         createDependency={createDependency}
                         onSuccess={handleCreateSuccess}
-                        onCancel={() => setShowForm(false)}
+                        onCancel={() => { setShowForm(false); setInitialTargets(undefined); }}
                     />
                 </DialogContent>
             </Dialog>
+
+            <ConfirmDialog
+                open={deleteTargetId !== null}
+                title="Удаление связи ДС"
+                content="Удалить эту зависимость? Дочернее свойство перестанет зависеть от выбранного значения."
+                onClose={() => setDeleteTargetId(null)}
+                onConfirm={confirmDelete}
+            />
         </Box>
     );
 };

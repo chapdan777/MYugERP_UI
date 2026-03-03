@@ -102,10 +102,14 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
       const propertyData: any = {
         code: formData.code.trim(),
         name: formData.name.trim(),
-        dataType: formData.dataType,
         isRequired: formData.isRequired,
         displayOrder: 0,
       };
+
+      // Тип данных можно задать только при создании
+      if (!property) {
+        propertyData.dataType = formData.dataType;
+      }
 
       if (formData.variableName?.trim()) {
         propertyData.variableName = formData.variableName.trim();
@@ -185,25 +189,27 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
         </Select>
       </FormControl>
 
-      {(formData.dataType === 'select' || formData.dataType === 'multiselect') && (
+      {(formData.dataType === 'select' || formData.dataType === 'multiselect' || formData.dataType === 'boolean') && (
         <React.Fragment>
           {property ? (
             <PropertyValueList propertyId={property.id} />
           ) : (
             <Alert severity="info" sx={{ mt: 2 }}>
-              Сохраните свойство, чтобы добавить возможные значения
+              Сохраните свойство, чтобы добавить возможные значения и наценки
             </Alert>
           )}
 
-          <TextField
-            fullWidth
-            label="Значение по умолчанию"
-            value={formData.defaultValue}
-            onChange={handleChange('defaultValue')}
-            margin="normal"
-            helperText="Значение, которое будет установлено по умолчанию"
-            sx={{ mt: 2 }}
-          />
+          {formData.dataType !== 'boolean' && (
+            <TextField
+              fullWidth
+              label="Значение по умолчанию"
+              value={formData.defaultValue}
+              onChange={handleChange('defaultValue')}
+              margin="normal"
+              helperText="Значение, которое будет установлено по умолчанию"
+              sx={{ mt: 2 }}
+            />
+          )}
         </React.Fragment>
       )}
 
