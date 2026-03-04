@@ -29,6 +29,7 @@ import {
 } from '@mui/material';
 import {
     Delete as DeleteIcon,
+    Edit as EditIcon,
     ExpandMore as ExpandMoreIcon,
     Link as LinkIcon,
 } from '@mui/icons-material';
@@ -61,10 +62,11 @@ export const ProductComponentsDialog: React.FC<ProductComponentsDialogProps> = (
     productName,
     properties
 }) => {
-    const { schemas, addSchema, removeSchema, isLoading } = useProductComponentSchemas(productId);
+    const { schemas, addSchema, removeSchema, updateSchema, isLoading } = useProductComponentSchemas(productId);
     const { products } = useProducts();
 
     // Состояние формы
+    const [editingSchemaId, setEditingSchemaId] = useState<number | null>(null);
     const [name, setName] = useState('');
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [lengthFormula, setLengthFormula] = useState('');
@@ -81,7 +83,7 @@ export const ProductComponentsDialog: React.FC<ProductComponentsDialogProps> = (
         { name: 'W', description: 'Ширина изделия', value: 1000 },
         { name: 'D', description: 'Глубина изделия', value: 600 },
         ...properties.map(p => ({
-            name: p.property.variableName || `PROP_${p.propertyId}`,
+            name: p.property.variableName || p.property.code || `PROP_${p.propertyId}`,
             description: p.property.name,
             value: p.value || 0
         }))
@@ -92,6 +94,7 @@ export const ProductComponentsDialog: React.FC<ProductComponentsDialogProps> = (
 
     /** Сброс формы */
     const resetForm = () => {
+        setEditingSchemaId(null);
         setName('');
         setSelectedProduct(null);
         setLengthFormula('');
@@ -114,7 +117,7 @@ export const ProductComponentsDialog: React.FC<ProductComponentsDialogProps> = (
             }
         }
 
-        await addSchema({
+        const dto = {
             productId,
             childProductId: selectedProduct?.id ?? null,
             name,
@@ -124,9 +127,41 @@ export const ProductComponentsDialog: React.FC<ProductComponentsDialogProps> = (
             depthFormula: depthFormula || null,
             extraVariables: Object.keys(extraVariablesObj).length > 0 ? extraVariablesObj : null,
             conditionFormula: conditionFormula || null,
-            sortOrder: schemas.length,
-        });
+        };
 
+        if (editingSchemaId) {
+            await updateSchema(editingSchemaId, dto);
+        } else {
+            await addSchema({
+                ...dto,
+                sortOrder: schemas.length,
+            });
+        }
+
+        resetForm();
+    };
+
+    /** Начало редактирования */
+    const handleEdit = (schema: any) => {
+        setEditingSchemaId(schema.id);
+        setName(schema.name);
+        setSelectedProduct(products.find((p: Product) => p.id === schema.childProductId) || null);
+        setLengthFormula(schema.lengthFormula);
+        setWidthFormula(schema.widthFormula);
+        setDepthFormula(schema.depthFormula || '');
+        setQuantityFormula(schema.quantityFormula);
+        setConditionFormula(schema.conditionFormula || '');
+
+        // Преобразование из объекта в массив для формы
+        if (schema.extraVariables) {
+            setExtraVars(Object.entries(schema.extraVariables).map(([key, value]) => ({ key, value: String(value) })));
+        } else {
+            setExtraVars([]);
+        }
+    };
+
+    /** Отмена редактирования */
+    const handleCancelEdit = () => {
         resetForm();
     };
 
@@ -186,7 +221,7 @@ export const ProductComponentsDialog: React.FC<ProductComponentsDialogProps> = (
                     {/* Форма добавления */}
                     <Grid size={{ xs: 12, md: 6 }}>
                         <Typography variant="h6" gutterBottom>
-                            Добавить компонент
+                            {editingSchemaId ? 'Редактировать компонент' : 'Добавить компонент'}
                         </Typography>
 
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -303,14 +338,26 @@ export const ProductComponentsDialog: React.FC<ProductComponentsDialogProps> = (
                                 </AccordionDetails>
                             </Accordion>
 
-                            <Button
-                                variant="contained"
-                                onClick={handleSave}
-                                disabled={!isFormValid}
-                                sx={{ mt: 1 }}
-                            >
-                                Добавить в состав
-                            </Button>
+                            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                                {editingSchemaId && (
+                                    <Button
+                                        variant="outlined"
+                                        color="inherit"
+                                        onClick={handleCancelEdit}
+                                        sx={{ flex: 1 }}
+                                    >
+                                        Отмена
+                                    </Button>
+                                )}
+                                <Button
+                                    variant="contained"
+                                    onClick={handleSave}
+                                    disabled={!isFormValid}
+                                    sx={{ flex: 2 }}
+                                >
+                                    {editingSchemaId ? 'Сохранить изменения' : 'Добавить в состав'}
+                                </Button>
+                            </Box>
                         </Box>
                     </Grid>
 
@@ -385,8 +432,11 @@ export const ProductComponentsDialog: React.FC<ProductComponentsDialogProps> = (
                                             }
                                         />
                                         <ListItemSecondaryAction>
+                                            <IconButton edge="end" size="small" color="primary" onClick={() => handleEdit(schema)} sx={{ mr: 1 }}>
+                                                <EditIcon fontSize="small" />
+                                            </IconButton>
                                             <IconButton edge="end" size="small" color="error" onClick={() => handleDelete(schema.id)}>
-                                                <DeleteIcon />
+                                                <DeleteIcon fontSize="small" />
                                             </IconButton>
                                         </ListItemSecondaryAction>
                                     </ListItem>

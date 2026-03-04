@@ -23,8 +23,10 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
+  ContentCopy as CopyIcon,
 } from '@mui/icons-material';
-import { useProducts } from '../model/product.hooks';
+import { Snackbar, Alert, CircularProgress } from '@mui/material';
+import { useProducts, useCloneProduct } from '../model/product.hooks';
 import type { Product } from '../model/types';
 
 interface ProductsTableProps {
@@ -45,8 +47,15 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   onView,
 }) => {
   const { products, isLoading, isError, error } = useProducts();
+  const { cloneProduct } = useCloneProduct();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [isCloning, setIsCloning] = useState<number | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
 
 
@@ -57,6 +66,26 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+  };
+
+  const handleClone = async (productId: number) => {
+    setIsCloning(productId);
+    try {
+      await cloneProduct(productId);
+      setSnackbar({
+        open: true,
+        message: 'Изделие успешно скопировано',
+        severity: 'success',
+      });
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Ошибка при копировании изделия',
+        severity: 'error',
+      });
+    } finally {
+      setIsCloning(null);
+    }
   };
 
   // Обрезаем данные для пагинации
@@ -199,6 +228,21 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                           </IconButton>
                         </Tooltip>
                       )}
+
+                      <Tooltip title="Копировать">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleClone(product.id)}
+                          disabled={isCloning !== null}
+                          color="primary"
+                        >
+                          {isCloning === product.id ? (
+                            <CircularProgress size={20} />
+                          ) : (
+                            <CopyIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -221,6 +265,17 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
           `${from}-${to} из ${count !== -1 ? count : `больше чем ${to}`}`
         }
       />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

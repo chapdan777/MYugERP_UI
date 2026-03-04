@@ -301,7 +301,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                 onChange={(e) => handleUpdateRow(idx, 'productId', Number(e.target.value))}
                             >
                                 <MenuItem value={0} disabled>Выберите товар</MenuItem>
-                                {products.map(p => (
+                                {products.filter(p => p.name && !p.name.includes('#')).map(p => (
                                     <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                                 ))}
                             </TextField>
@@ -420,7 +420,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                             }}
                                         >
                                             <MenuItem value={0} disabled>Выберите товар</MenuItem>
-                                            {products.map(p => (
+                                            {products.filter(p => p.name && !p.name.includes('#')).map(p => (
                                                 <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                                             ))}
                                         </TextField>

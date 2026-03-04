@@ -21,6 +21,9 @@ import type { Property } from '@shared/api/property/types';
 import type { CreateOrderItemDto, OrderPropertyDto } from '@shared/api/order/types';
 import type { PriceCalculationResult } from '@shared/api/pricing/types';
 import { pricingApi } from '@shared/api/pricing';
+import { useProductComponentSchemas } from '../../../entities/product-component-schema/model/useProductComponentSchemas';
+import { useNestedProductProperties } from '../../../entities/product-component-schema/model/useNestedProductProperties';
+import { NestedPropertyTabs } from './NestedPropertyTabs';
 
 interface ItemDetailsModalProps {
     open: boolean;
@@ -56,6 +59,21 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
     const [allProperties, setAllProperties] = useState<Property[]>([]);
     const [productProps, setProductProps] = useState<any[]>([]);
     const [selectedPropToAdd, setSelectedPropToAdd] = useState<string>('');
+    const { schemas: productComposition } = useProductComponentSchemas(Number(localItem?.productId));
+    const { nestedProperties, isLoading: nestedLoading } = useNestedProductProperties(
+        localItem?.productId ? Number(localItem.productId) : null
+    );
+
+    // Локальное состояние для вложенных свойств (ключ — productId дочерней номенклатуры)
+    const [nestedValues, setNestedValues] = useState<Record<number, OrderPropertyDto[]>>({});
+
+    /** Обработчик изменения свойств вложенного компонента */
+    const handleNestedPropertiesChange = (productId: number, values: OrderPropertyDto[]) => {
+        setNestedValues(prev => ({
+            ...prev,
+            [productId]: values,
+        }));
+    };
 
     // Fetch product and global properties on open
     useEffect(() => {
@@ -247,6 +265,19 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                     )}
                 </Box>
 
+                {/* Вложенные компоненты (вкладки) */}
+                {nestedProperties.length > 0 && (
+                    <Box sx={{ mb: 2 }}>
+                        <NestedPropertyTabs
+                            nestedNodes={nestedProperties}
+                            headerId={headerId}
+                            nestedValues={nestedValues}
+                            onNestedChange={handleNestedPropertiesChange}
+                            isLoading={nestedLoading}
+                        />
+                    </Box>
+                )}
+
                 {localCalcResult && (
                     <Accordion disableGutters elevation={0} sx={{ border: '1px solid #eee', '&:before': { display: 'none' } }}>
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -385,8 +416,11 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                                         </Typography>
                                     </AccordionSummary>
                                     <AccordionDetails sx={{ p: 1 }}>
-                                        <Box sx={{ fontSize: '0.6rem', fontFamily: 'monospace', whiteSpace: 'pre-wrap', bgcolor: '#1e1e1e', color: '#d4d4d4', p: 1, borderRadius: 1, maxHeight: 200, overflow: 'auto' }}>
-                                            {JSON.stringify(localCalcResult, null, 2)}
+                                        <Box sx={{ fontSize: '0.6rem', fontFamily: 'monospace', whiteSpace: 'pre-wrap', bgcolor: '#1e1e1e', color: '#d4d4d4', p: 1, borderRadius: 1, maxHeight: 300, overflow: 'auto' }}>
+                                            {JSON.stringify({
+                                                calculation: localCalcResult,
+                                                composition: productComposition
+                                            }, null, 2)}
                                         </Box>
                                     </AccordionDetails>
                                 </Accordion>

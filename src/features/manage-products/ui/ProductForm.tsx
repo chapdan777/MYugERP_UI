@@ -47,6 +47,27 @@ interface ProductFormProps {
   onCancel: () => void;
 }
 
+// Категории продукта (соответствуют ProductCategory enum)
+const CATEGORIES = [
+  { value: 'windows', label: 'Окна' },
+  { value: 'doors', label: 'Двери' },
+  { value: 'facades', label: 'Фасады' },
+  { value: 'partitions', label: 'Перегородки' },
+  { value: 'railings', label: 'Ограждения' },
+  { value: 'canopies', label: 'Навесы' },
+  { value: 'material', label: 'Материал' },
+  { value: 'semifinished', label: 'Полуфабрикат' },
+  { value: 'other', label: 'Другое' },
+];
+
+// Единицы измерения
+const UNITS_OF_MEASURE = [
+  { value: 'шт', label: 'шт' },
+  { value: 'м2', label: 'м²' },
+  { value: 'пог_метр', label: 'пог.м' },
+  { value: 'комплект', label: 'комплект' },
+];
+
 /**
  * Форма добавления/редактирования номенклатуры
  */
@@ -63,13 +84,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   // Отладочный вывод
   console.log('Properties hook result:', { properties, propertiesLoading, isError, error });
+
+  const isValidCategory = (cat: string) => CATEGORIES.some(c => c.value === cat);
+  const isValidUnit = (unit: string) => UNITS_OF_MEASURE.some(u => u.value === unit);
+
   const [formData, setFormData] = useState<CreateProductInput>({
     name: product?.name || '',
     code: product?.code || '',
     description: product?.description || '',
     basePrice: product?.basePrice || 0,
-    unit: product?.unit || 'шт',
-    category: product?.category || '',
+    unit: (product?.unit && isValidUnit(product.unit)) ? product.unit : 'шт',
+    category: (product?.category && isValidCategory(product.category)) ? product.category : '',
     defaultLength: product?.defaultLength ?? undefined,
     defaultWidth: product?.defaultWidth ?? undefined,
     defaultDepth: product?.defaultDepth ?? undefined,
@@ -120,7 +145,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       const mappedProperties = productProps
         .map((productProp: any) => {
           // Find the full property details from the properties list
-          const property = properties.find((p: any) => p.id === productProp.propertyId);
+          const property = properties.find((p: any) => p.id == productProp.propertyId);
           if (!property) return null; // Property no longer exists in system
 
           return {
@@ -238,6 +263,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         // Режим редактирования - отправляем только разрешенные поля
         const updateData = {
           name: formData.name,
+          code: formData.code,
           description: formData.description,
           basePrice: formData.basePrice,
           unit: formData.unit,
@@ -299,34 +325,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       onSuccess(resultProduct);
     } catch (error: any) {
       console.error(`${product ? 'Ошибка при обновлении' : 'Ошибка при создании'} продукта:`, error);
+
+      const responseMessage = error.response?.data?.message;
+      const errorMessage = Array.isArray(responseMessage)
+        ? responseMessage.join('; ')
+        : (responseMessage || `${product ? 'Ошибка при обновлении' : 'Ошибка при создании'} номенклатуры`);
+
       setSnackbar({
         open: true,
-        message: error.response?.data?.message || `${product ? 'Ошибка при обновлении' : 'Ошибка при создании'} номенклатуры`,
+        message: errorMessage,
         severity: 'error'
       });
     }
   };
-
-  // Категории продукта (соответствуют ProductCategory enum)
-  const categories = [
-    { value: 'windows', label: 'Окна' },
-    { value: 'doors', label: 'Двери' },
-    { value: 'facades', label: 'Фасады' },
-    { value: 'partitions', label: 'Перегородки' },
-    { value: 'railings', label: 'Ограждения' },
-    { value: 'canopies', label: 'Навесы' },
-    { value: 'material', label: 'Материал' },
-    { value: 'semifinished', label: 'Полуфабрикат' },
-    { value: 'other', label: 'Другое' },
-  ];
-
-  // Единицы измерения
-  const unitsOfMeasure = [
-    { value: 'шт', label: 'шт' },
-    { value: 'м2', label: 'м²' },
-    { value: 'пог_метр', label: 'пог.м' },
-    { value: 'комплект', label: 'комплект' },
-  ];
 
   return (
     <>
@@ -378,7 +389,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   onChange={e => handleFieldChange('category', e.target.value)}
                   required
                 >
-                  {categories.map(cat => (
+                  {CATEGORIES.map(cat => (
                     <MenuItem key={cat.value} value={cat.value}>
                       {cat.label}
                     </MenuItem>
@@ -394,7 +405,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   onChange={e => handleFieldChange('unit', e.target.value)}
                   required
                 >
-                  {unitsOfMeasure.map(unit => (
+                  {UNITS_OF_MEASURE.map(unit => (
                     <MenuItem key={unit.value} value={unit.value}>
                       {unit.label}
                     </MenuItem>

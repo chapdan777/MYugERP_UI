@@ -1,5 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
-import type { CreatePropertyDependencyDto, PropertyDependency } from '../model/types';
+import type { CreatePropertyDependencyDto, PropertyDependency, UpdatePropertyDependencyDto } from '../model/types';
 
 const BASE_URL = '/property-dependencies';
 
@@ -23,6 +23,14 @@ export const propertyDependenciesApi = {
      */
     createDependency: async (dto: CreatePropertyDependencyDto): Promise<PropertyDependency> => {
         const response = await apiClient.post<PropertyDependency>(BASE_URL, dto);
+        return response.data;
+    },
+
+    /**
+     * Обновить зависимость
+     */
+    updateDependency: async (id: number, dto: UpdatePropertyDependencyDto): Promise<PropertyDependency> => {
+        const response = await apiClient.put<PropertyDependency>(`${BASE_URL}/${id}`, dto);
         return response.data;
     },
 

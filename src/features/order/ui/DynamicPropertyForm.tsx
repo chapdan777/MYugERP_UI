@@ -22,7 +22,7 @@ interface DynamicPropertyFormProps {
     productProperties?: any[]; // Свойства из номенклатуры для доп. сортировки
 }
 
-export const DynamicPropertyForm = ({ headerId, productId, values, onChange, productProperties = [] }: DynamicPropertyFormProps) => {
+export const DynamicPropertyForm = ({ headerId, values, onChange, productProperties = [] }: DynamicPropertyFormProps) => {
     const [loading, setLoading] = useState(true);
     const [properties, setProperties] = useState<Property[]>([]);
     const [dependencies, setDependencies] = useState<PropertyDependency[]>([]);

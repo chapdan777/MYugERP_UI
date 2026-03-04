@@ -21,6 +21,7 @@ import { usePropertyDependencies, usePropertyDependencyMutations } from '../mode
 import { PropertyDependenciesTable } from './PropertyDependenciesTable';
 import { PropertyDependencyForm } from './PropertyDependencyForm';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
+import type { PropertyDependency } from '../model/types';
 
 // Simple TabPanel component since I don't want to rely on shared one existance
 interface TabPanelProps {
@@ -54,12 +55,13 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
     const [showForm, setShowForm] = useState(false);
     const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
     const [initialTargets, setInitialTargets] = useState<any[] | undefined>(undefined);
+    const [editDependencyId, setEditDependencyId] = useState<number | undefined>(undefined);
 
     const { dependencies, isLoading: isLoadingDependencies, mutate } = usePropertyDependencies(
         selectedPropertyId ? Number(selectedPropertyId) : null
     );
 
-    const { createDependency, deleteDependency } = usePropertyDependencyMutations();
+    const { createDependency, updateDependency, deleteDependency } = usePropertyDependencyMutations();
 
     const handleCopy = (dep: any) => {
         // Находим все зависимости для того же исходного свойства и значения
@@ -76,6 +78,27 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
         }));
 
         setInitialTargets(targetsToCopy);
+        setEditDependencyId(undefined); // Ensure we are NOT in edit mode
+        setShowForm(true);
+    };
+
+    const handleEdit = (dependencyOrGroup: PropertyDependency | PropertyDependency[]) => {
+        let group: PropertyDependency[];
+        if (Array.isArray(dependencyOrGroup)) {
+            group = dependencyOrGroup;
+        } else {
+            group = [dependencyOrGroup];
+        }
+
+        const targetsToEdit = group.map(dep => ({
+            id: String(dep.id),
+            targetPropertyId: dep.targetPropertyId,
+            dependencyType: dep.dependencyType,
+            targetValue: dep.targetValue || ''
+        }));
+
+        setInitialTargets(targetsToEdit);
+        setEditDependencyId(group[0].id);
         setShowForm(true);
     };
 
@@ -93,6 +116,7 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
 
     const handleCreateSuccess = () => {
         setShowForm(false);
+        setEditDependencyId(undefined);
         mutate();
     };
 
@@ -129,6 +153,7 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
                             variant="contained"
                             onClick={() => {
                                 setInitialTargets(undefined);
+                                setEditDependencyId(undefined);
                                 setShowForm(true);
                             }}
                         >
@@ -157,6 +182,7 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
                                         dependencies={dependencies?.asSource || []}
                                         onDelete={handleDelete}
                                         onCopy={handleCopy}
+                                        onEdit={handleEdit}
                                     />
                                 </LocalTabPanel>
 
@@ -164,7 +190,9 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
                                     <PropertyDependenciesTable
                                         dependencies={dependencies?.asTarget || []}
                                         onDelete={handleDelete}
-                                    // Не даем копировать "как цель", так как там источник другой
+                                        onEdit={handleEdit}
+                                        // Не даем копировать "как цель", так как там источник другой
+                                        isTargetView={true}
                                     />
                                 </LocalTabPanel>
                             </Box>
@@ -179,18 +207,27 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
 
             <Dialog
                 open={showForm}
-                onClose={() => { setShowForm(false); setInitialTargets(undefined); }}
+                onClose={() => { setShowForm(false); setInitialTargets(undefined); setEditDependencyId(undefined); }}
                 maxWidth="md"
                 fullWidth
             >
-                <DialogTitle>{initialTargets ? 'Копирование зависимости (Создание)' : 'Создание новой зависимости'}</DialogTitle>
+                <DialogTitle>
+                    {editDependencyId
+                        ? 'Редактирование связи ДС'
+                        : initialTargets
+                            ? 'Копирование зависимости (Создание)'
+                            : 'Создание новой зависимости'
+                    }
+                </DialogTitle>
                 <DialogContent>
                     <PropertyDependencyForm
                         initialSourcePropertyId={typeof selectedPropertyId === 'number' ? selectedPropertyId : undefined}
                         initialTargets={initialTargets}
+                        editDependencyId={editDependencyId}
                         createDependency={createDependency}
+                        updateDependency={updateDependency}
                         onSuccess={handleCreateSuccess}
-                        onCancel={() => { setShowForm(false); setInitialTargets(undefined); }}
+                        onCancel={() => { setShowForm(false); setInitialTargets(undefined); setEditDependencyId(undefined); }}
                     />
                 </DialogContent>
             </Dialog>
@@ -202,6 +239,6 @@ export const PropertyDependenciesManagementPage: React.FC = () => {
                 onClose={() => setDeleteTargetId(null)}
                 onConfirm={confirmDelete}
             />
-        </Box>
+        </Box >
     );
 };

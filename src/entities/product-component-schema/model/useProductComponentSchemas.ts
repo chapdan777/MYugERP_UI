@@ -1,6 +1,6 @@
 import useSWR from 'swr';
 import { swrFetcher } from '../../../shared/api/client';
-import { createProductComponentSchema, deleteProductComponentSchema } from '../api';
+import { createProductComponentSchema, deleteProductComponentSchema, updateProductComponentSchema } from '../api';
 import type { CreateProductComponentSchemaDto, ProductComponentSchema } from './types';
 
 export const useProductComponentSchemas = (productId: number) => {
@@ -22,11 +22,17 @@ export const useProductComponentSchemas = (productId: number) => {
         await mutate();
     };
 
+    const updateSchema = async (id: number, dto: Partial<CreateProductComponentSchemaDto>) => {
+        await updateProductComponentSchema(id, dto);
+        await mutate();
+    };
+
     return {
         schemas: data || [],
         isLoading,
         error,
         addSchema,
-        removeSchema
+        removeSchema,
+        updateSchema
     };
 };

@@ -35,3 +35,16 @@ export interface CreatePropertyDependencyDto {
     sourceValue?: string;
     targetValue?: string;
 }
+
+/**
+ * DTO для обновления зависимости
+ */
+export interface UpdatePropertyDependencyDto {
+    sourcePropertyId?: number;
+    targetPropertyId?: number;
+    dependencyType?: DependencyType;
+    sourceValue?: string;
+    targetValue?: string;
+    isActive?: boolean;
+}
+

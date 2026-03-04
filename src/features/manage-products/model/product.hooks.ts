@@ -217,3 +217,24 @@ export const useGetProductProperties = () => {
 
   return { getProductProperties };
 };
+
+/**
+ * Хук для клонирования продукта
+ */
+export const useCloneProduct = () => {
+  return {
+    cloneProduct: async (productId: number | string) => {
+      try {
+        console.log(`📤 Cloning product ${productId}`);
+        const response = await apiClient.post<Product>(`${PRODUCTS_API_URL}/${productId}/clone`);
+        console.log('✅ Product cloned successfully:', response.data);
+        // Обновляем кэш SWR
+        await mutate(PRODUCTS_API_URL);
+        return response.data;
+      } catch (error) {
+        console.error('Ошибка при клонировании продукта:', error);
+        throw error;
+      }
+    },
+  };
+};

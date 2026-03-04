@@ -29,10 +29,12 @@ interface TargetConfig {
 
 interface PropertyDependencyFormProps {
     initialSourcePropertyId?: number;
-    initialTargets?: TargetConfig[]; // Support for pre-filling targets when Copying
+    initialTargets?: TargetConfig[]; // Support for pre-filling targets when Copying or Editing
+    editDependencyId?: number; // If present, implies Edit mode
     onSuccess: () => void;
     onCancel: () => void;
-    createDependency: (dto: CreatePropertyDependencyDto) => Promise<any>;
+    createDependency?: (dto: CreatePropertyDependencyDto) => Promise<any>;
+    updateDependency?: (id: number, dto: any) => Promise<any>;
 }
 
 // Utility to parse possible values safely
@@ -175,11 +177,14 @@ const TargetConfigRow: React.FC<{
 export const PropertyDependencyForm: React.FC<PropertyDependencyFormProps> = ({
     initialSourcePropertyId,
     initialTargets,
+    editDependencyId,
     onSuccess,
     onCancel,
-    createDependency
+    createDependency,
+    updateDependency
 }) => {
     const { properties, isLoading: isLoadingProps } = useProperties();
+    const isEditing = !!editDependencyId;
 
     const [sourcePropertyId, setSourcePropertyId] = useState<number | ''>(initialSourcePropertyId || '');
     const [sourceValue, setSourceValue] = useState<string>('');
@@ -260,16 +265,43 @@ export const PropertyDependencyForm: React.FC<PropertyDependencyFormProps> = ({
         setError(null);
 
         try {
-            await Promise.all(targets.map(t => createDependency({
-                sourcePropertyId: Number(sourcePropertyId),
-                targetPropertyId: Number(t.targetPropertyId),
-                dependencyType: t.dependencyType,
-                sourceValue: sourceValue || undefined,
-                targetValue: t.targetValue || undefined,
-            })));
+            if (isEditing && updateDependency && createDependency) {
+                // В режиме редактирования:
+                // Первая цель - это та, которую мы редактируем.
+                // Остальные цели - новые, их нужно создать.
+                const firstTarget = targets[0];
+                const newTargets = targets.slice(1);
+
+                const updatePromise = updateDependency(editDependencyId, {
+                    sourcePropertyId: Number(sourcePropertyId),
+                    targetPropertyId: Number(firstTarget.targetPropertyId),
+                    dependencyType: firstTarget.dependencyType,
+                    sourceValue: sourceValue || '',
+                    targetValue: firstTarget.targetValue || undefined,
+                });
+
+                const createPromises = newTargets.map(t => createDependency({
+                    sourcePropertyId: Number(sourcePropertyId),
+                    targetPropertyId: Number(t.targetPropertyId),
+                    dependencyType: t.dependencyType,
+                    sourceValue: sourceValue || undefined,
+                    targetValue: t.targetValue || undefined,
+                }));
+
+                await Promise.all([updatePromise, ...createPromises]);
+            } else if (createDependency) {
+                // В режиме создания можем создать сразу несколько
+                await Promise.all(targets.map(t => createDependency({
+                    sourcePropertyId: Number(sourcePropertyId),
+                    targetPropertyId: Number(t.targetPropertyId),
+                    dependencyType: t.dependencyType,
+                    sourceValue: sourceValue || undefined,
+                    targetValue: t.targetValue || undefined,
+                })));
+            }
             onSuccess();
         } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'Ошибка при создании зависимости');
+            setError(err.response?.data?.message || err.message || 'Ошибка при сохранении зависимости');
         } finally {
             setIsSubmitting(false);
         }
@@ -305,12 +337,13 @@ export const PropertyDependencyForm: React.FC<PropertyDependencyFormProps> = ({
                     </FormControl>
 
                     <FormControl fullWidth disabled={!sourcePropertyId}>
-                        <InputLabel>Значение исходного свойства (равно...)</InputLabel>
+                        <InputLabel shrink={true}>Значение исходного свойства (равно...)</InputLabel>
                         <Select
                             value={sourceValue}
                             label="Значение исходного свойства (равно...)"
                             onChange={(e) => setSourceValue(e.target.value)}
                             displayEmpty
+                            notched={true}
                         >
                             <MenuItem value=""><em>Любое значение</em></MenuItem>
                             {sourceValuesList.map((val: any) => (
@@ -328,7 +361,7 @@ export const PropertyDependencyForm: React.FC<PropertyDependencyFormProps> = ({
 
             <Box>
                 <Typography variant="subtitle2" gutterBottom color="primary">Следствия (Целевые свойства)</Typography>
-                {targets.map(target => (
+                {targets.map((target, index) => (
                     <TargetConfigRow
                         key={target.id}
                         target={target}
@@ -336,7 +369,12 @@ export const PropertyDependencyForm: React.FC<PropertyDependencyFormProps> = ({
                         sourcePropertyId={sourcePropertyId}
                         onChange={(t) => updateTarget(target.id, t)}
                         onRemove={() => removeTarget(target.id)}
-                        canRemove={targets.length > 1}
+                        // В режиме редактирования первую цель нельзя удалить (т.к. мы редактируем именно ее ID),
+                        // остальные (новые) можно удалять.
+                        canRemove={
+                            (targets.length > 1 && !isEditing) ||
+                            (isEditing && index > 0)
+                        }
                     />
                 ))}
 

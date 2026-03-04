@@ -303,7 +303,10 @@ const PropertyHeaderForm: React.FC<PropertyHeaderFormProps> = ({
             </Typography>
           ) : (
             <List sx={{ maxHeight: 300, overflow: 'auto' }}>
-              {headerProducts.map((item: PropertyHeaderProduct) => (
+              {headerProducts.filter(item => {
+                const prod = products?.find((p: any) => p.id === item.productId);
+                return !!prod && !prod.name.includes('#');
+              }).map((item: PropertyHeaderProduct) => (
                 <ListItem
                   key={`${item.headerId}-${item.productId}`}
                   divider

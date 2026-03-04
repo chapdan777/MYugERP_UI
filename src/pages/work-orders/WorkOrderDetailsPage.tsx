@@ -45,7 +45,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import ViewListIcon from '@mui/icons-material/ViewList';
-import FilterListIcon from '@mui/icons-material/FilterList';
+
 import LayersIcon from '@mui/icons-material/Layers';
 import { ToggleButton, ToggleButtonGroup, FormControlLabel, Switch } from '@mui/material';
 

@@ -53,3 +53,26 @@ export interface CreateProductComponentSchemaDto {
     /** Порядок сортировки */
     sortOrder?: number;
 }
+
+/**
+ * Узел дерева вложенных свойств продукта
+ * @description Представляет дочернюю номенклатуру с её свойствами
+ * и рекурсивными дочерними узлами
+ */
+export interface NestedProductNode {
+    /** ID продукта */
+    productId: number;
+    /** Название продукта */
+    productName: string;
+    /** Название компонента в BOM-схеме родителя */
+    componentName: string;
+    /** Свойства этого продукта */
+    properties: Array<{
+        propertyId: number;
+        propertyName: string;
+        defaultValue: string | null;
+        isRequired: boolean;
+    }>;
+    /** Дочерние компоненты (рекурсия) */
+    children: NestedProductNode[];
+}
