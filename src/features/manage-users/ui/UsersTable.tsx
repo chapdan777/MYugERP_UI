@@ -71,7 +71,7 @@ const UsersTable: React.FC<UsersTableProps> = ({ onEdit }) => {
   }
 
   return (
-    <TableContainer component={Paper}>
+    <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
       <Table>
         <TableHead>
           <TableRow>
@@ -97,7 +97,12 @@ const UsersTable: React.FC<UsersTableProps> = ({ onEdit }) => {
             </TableRow>
           ) : (
             users.map((user) => (
-              <TableRow key={user.id}>
+              <TableRow
+                key={user.id}
+                hover
+                onClick={() => onEdit(user)}
+                sx={{ cursor: 'pointer' }}
+              >
                 <TableCell>{user.fullName}</TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
@@ -117,14 +122,14 @@ const UsersTable: React.FC<UsersTableProps> = ({ onEdit }) => {
                 <TableCell align="right">
                   <IconButton
                     size="small"
-                    onClick={() => onEdit(user)}
+                    onClick={(e) => { e.stopPropagation(); onEdit(user); }}
                     disabled={!!deletingUserId}
                   >
                     <EditIcon fontSize="small" />
                   </IconButton>
                   <IconButton
                     size="small"
-                    onClick={() => handleDelete(user.id)}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(user.id); }}
                     disabled={!!deletingUserId}
                   >
                     <DeleteIcon

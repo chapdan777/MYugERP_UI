@@ -155,7 +155,7 @@ export const OrderPage = () => {
               return {
                 sectionNumber: section.sectionNumber,
                 sectionName: section.name,
-                headerId: section.headerId || 3,
+                headerId: section.headerId,
                 propertyValues: sectionPropertyValues,
                 items: section.items.map((item: any) => ({
                   productId: item.productId,
@@ -225,6 +225,39 @@ export const OrderPage = () => {
 
   const { users } = useUsers();
 
+  /**
+   * Безопасное преобразование строковой даты (DD.MM.YYYY или опции срока) в ISO формат
+   */
+  const formatDateToISO = (dateStr: string | undefined): string | undefined => {
+    if (!dateStr) return undefined;
+
+    // 1. Обработка стандартных опций срока (превращаем в дату от "сегодня")
+    if (dateStr.includes('7 дней')) return new Date(Date.now() + 7 * 86400000).toISOString();
+    if (dateStr.includes('14 дней')) return new Date(Date.now() + 14 * 86400000).toISOString();
+    if (dateStr.includes('35 дней')) return new Date(Date.now() + 35 * 86400000).toISOString();
+    if (dateStr.includes('45 рабочих дней')) return new Date(Date.now() + 63 * 86400000).toISOString(); // ~9 недель
+
+    // 2. Обработка формата DD.MM.YYYY
+    const parts = dateStr.split('.');
+    if (parts.length === 3) {
+      const year = parseInt(parts[2]);
+      const month = parseInt(parts[1]) - 1;
+      const day = parseInt(parts[0]);
+      const date = new Date(year, month, day);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+
+    // 3. Попытка прямого парсинга (если пришло из БД в ISO)
+    const fallbackDate = new Date(dateStr);
+    if (!isNaN(fallbackDate.getTime())) {
+      return fallbackDate.toISOString();
+    }
+
+    return undefined;
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -235,9 +268,11 @@ export const OrderPage = () => {
       const orderDto: CreateOrderDto = {
         clientId,
         clientName: headerData.clientName || 'Без названия',
-        deadline: headerData.deadline.includes('дней')
-          ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // Placeholder logic for now
-          : new Date().toISOString(),
+        deadline: formatDateToISO(headerData.deadline),
+        documentType: headerData.documentType,
+        manager: headerData.manager,
+        orderName: headerData.orderName,
+        launchDate: formatDateToISO(headerData.launchDate),
         notes: `Заказ: ${headerData.orderName || 'Новый'}`,
         sections: sections
       };
@@ -246,10 +281,15 @@ export const OrderPage = () => {
         await orderApi.updateOrder(parsedId, orderDto);
         setNotification({ open: true, message: 'Заказ успешно обновлен!', severity: 'success' });
       } else {
-        await orderApi.createOrder(orderDto);
+        const newOrder = await orderApi.createOrder(orderDto);
         // Очищаем черновик после успешного сохранения
         clearDraft();
         setNotification({ open: true, message: 'Заказ успешно создан!', severity: 'success' });
+
+        // Переходим к редактированию созданного заказа
+        if (newOrder?.id) {
+          navigate(`/orders/${newOrder.id}`);
+        }
       }
     } catch (error) {
       console.error('Failed to save order:', error);

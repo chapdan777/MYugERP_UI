@@ -86,7 +86,7 @@ export const OrdersListPage = () => {
                     </Button>
                 </Box>
 
-                <TableContainer component={Paper}>
+                <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
                     <Table>
                         <TableHead>
                             <TableRow>
@@ -113,7 +113,12 @@ export const OrdersListPage = () => {
                                 </TableRow>
                             ) : (
                                 orders.map((order) => (
-                                    <TableRow key={order.id} hover>
+                                    <TableRow
+                                        key={order.id}
+                                        hover
+                                        onClick={() => navigate(`/orders/${order.id}`)}
+                                        sx={{ cursor: 'pointer' }}
+                                    >
                                         <TableCell>{order.orderNumber}</TableCell>
                                         <TableCell>{order.clientName}</TableCell>
                                         <TableCell>{new Date(order.createdAt).toLocaleDateString('ru-RU')}</TableCell>
@@ -128,7 +133,7 @@ export const OrdersListPage = () => {
                                             {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB' }).format(order.totalAmount || 0)}
                                         </TableCell>
                                         <TableCell align="right">
-                                            <IconButton size="small" onClick={() => navigate(`/orders/${order.id}`)}>
+                                            <IconButton size="small" onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}>
                                                 <VisibilityIcon fontSize="small" />
                                             </IconButton>
                                             <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleOpenDeleteDialog(order); }}>

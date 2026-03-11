@@ -3,6 +3,7 @@ export interface OrderPropertyDto {
     propertyName: string;
     propertyCode: string;
     value: string;
+    variableName?: string;
 }
 
 export interface OrderItemDto {
@@ -16,6 +17,8 @@ export interface OrderItemDto {
     basePrice?: number; // Point 3
     finalPrice?: number; // Point 3
     properties?: OrderPropertyDto[];
+    /** Свойства вложенных компонентов: ключ — productId дочерней номенклатуры */
+    nestedProperties?: Record<number, OrderPropertyDto[]>;
 }
 
 export type CreateOrderItemDto = OrderItemDto; // Alias for consistency
@@ -33,6 +36,10 @@ export interface CreateOrderDto {
     clientId: number;
     clientName: string;
     deadline?: string; // ISO Date string
+    documentType?: string;
+    manager?: string;
+    orderName?: string;
+    launchDate?: string; // ISO Date string
     notes?: string;
     sections: CreateOrderSectionDto[];
 }

@@ -58,8 +58,9 @@ const StyledContainer = ({ children }: { children: React.ReactNode }) => (
   <Container
     maxWidth="xl"
     sx={{
-      paddingTop: '20px',
-      paddingBottom: '20px',
+      paddingTop: { xs: '8px', sm: '16px', md: '20px' },
+      paddingBottom: { xs: '8px', sm: '16px', md: '20px' },
+      px: { xs: 0, sm: 2, md: 3 },
     }}
   >
     {children}
@@ -105,7 +106,7 @@ function TabPanel(props: TabPanelProps) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
           {children}
         </Box>
       )}
@@ -356,7 +357,7 @@ const DataManagementPage: React.FC = () => {
               <Box sx={{ flex: 1 }}>
                 <SectionCard>
                   <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                       <Typography variant="h6">
                         {editingUser ? 'Редактировать пользователя' : 'Создать нового пользователя'}
                       </Typography>
@@ -364,6 +365,7 @@ const DataManagementPage: React.FC = () => {
                         <Button
                           variant="contained"
                           onClick={handleCreateUser}
+                          size="small"
                         >
                           Добавить пользователя
                         </Button>
@@ -403,7 +405,7 @@ const DataManagementPage: React.FC = () => {
               <Box sx={{ flex: 1 }}>
                 <SectionCard>
                   <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                       <Typography variant="h6">
                         Добавление новой номенклатуры
                       </Typography>
@@ -411,6 +413,7 @@ const DataManagementPage: React.FC = () => {
                         <Button
                           variant="contained"
                           onClick={handleCreateProduct}
+                          size="small"
                         >
                           Добавить номенклатуру
                         </Button>
@@ -468,11 +471,11 @@ const DataManagementPage: React.FC = () => {
           {/* Вкладка Участки */}
           <TabPanel value={activeTab} index={7}>
             <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                 <Typography variant="h6">
                   Производственные участки
                 </Typography>
-                <Button variant="contained" onClick={handleCreateDepartment}>
+                <Button variant="contained" size="small" onClick={handleCreateDepartment}>
                   Добавить участок
                 </Button>
               </Box>
@@ -488,11 +491,11 @@ const DataManagementPage: React.FC = () => {
           {/* Вкладка Операции */}
           <TabPanel value={activeTab} index={5}>
             <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                 <Typography variant="h6">
                   Производственные операции
                 </Typography>
-                <Button variant="contained" onClick={handleCreateOperation}>
+                <Button variant="contained" size="small" onClick={handleCreateOperation}>
                   Добавить операцию
                 </Button>
               </Box>
@@ -511,11 +514,11 @@ const DataManagementPage: React.FC = () => {
           {/* Вкладка Статусы ЗН */}
           <TabPanel value={activeTab} index={6}>
             <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                 <Typography variant="h6">
                   Статусы заказ-нарядов
                 </Typography>
-                <Button variant="contained" onClick={handleCreateStatus}>
+                <Button variant="contained" size="small" onClick={handleCreateStatus}>
                   Добавить статус
                 </Button>
               </Box>

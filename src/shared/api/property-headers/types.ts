@@ -28,6 +28,7 @@ export interface HeaderProduct {
     defaultLength?: number | null;
     defaultWidth?: number | null;
     defaultDepth?: number | null;
+    isActive: boolean;
 }
 
 export interface GetHeadersParams {

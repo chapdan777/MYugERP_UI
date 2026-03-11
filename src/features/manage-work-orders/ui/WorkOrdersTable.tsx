@@ -41,14 +41,14 @@ export const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({
     const navigate = useNavigate();
 
     if (isLoading) {
-        return <Typography sx={{ color: '#94a3b8', p: 3 }}>Загрузка...</Typography>;
+        return <Typography sx={{ color: 'text.secondary', p: 3 }}>Загрузка...</Typography>;
     }
 
     if (workOrders.length === 0) {
         return (
             <GlassCard>
                 <Box sx={{ p: 4, textAlign: 'center' }}>
-                    <Typography sx={{ color: '#64748b' }}>Нет активных заказ-нарядов</Typography>
+                    <Typography sx={{ color: 'text.secondary' }}>Нет активных заказ-нарядов</Typography>
                 </Box>
             </GlassCard>
         );
@@ -81,10 +81,10 @@ export const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({
                                     key={wo.id}
                                     hover
                                     onClick={() => navigate(`/work-orders/${wo.id}`)}
-                                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}
+                                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
                                 >
                                     <TableCell>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#e2e8f0' }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                                             {wo.workOrderNumber}
                                         </Typography>
                                     </TableCell>
@@ -93,7 +93,7 @@ export const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({
                                             label={name}
                                             size="small"
                                             sx={{
-                                                backgroundColor: alpha(color, 0.15),
+                                                backgroundColor: alpha(color, 0.1),
                                                 color: color,
                                                 fontWeight: 600,
                                                 fontSize: '0.7rem',
@@ -102,15 +102,15 @@ export const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+                                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                                             {wo.orderNumber}
                                         </Typography>
                                     </TableCell>
                                     <TableCell>
-                                        <Typography variant="body2" sx={{ fontWeight: 500, color: '#cbd5e1' }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                                             {wo.departmentName}
                                         </Typography>
-                                        <Typography variant="caption" sx={{ color: '#64748b' }}>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                                             {wo.operationName}
                                         </Typography>
                                     </TableCell>
@@ -119,7 +119,7 @@ export const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({
                                             size="small"
                                             label={wo.effectivePriority}
                                             sx={{
-                                                backgroundColor: alpha(prioColor, 0.12),
+                                                backgroundColor: alpha(prioColor, 0.1),
                                                 color: prioColor,
                                                 fontWeight: 700,
                                                 fontSize: '0.75rem',
@@ -129,7 +129,7 @@ export const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+                                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                                             {wo.deadline ? new Date(wo.deadline).toLocaleDateString('ru-RU') : '—'}
                                         </Typography>
                                     </TableCell>
@@ -139,7 +139,7 @@ export const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({
                                                 {wo.totalPieceRatePayment.toLocaleString('ru-RU')} ₽
                                             </Typography>
                                         ) : (
-                                            <Typography variant="body2" sx={{ color: '#475569' }}>—</Typography>
+                                            <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>
                                         )}
                                     </TableCell>
                                     <TableCell align="right">
@@ -147,7 +147,7 @@ export const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({
                                             <IconButton
                                                 size="small"
                                                 onClick={(e) => { e.stopPropagation(); navigate(`/work-orders/${wo.id}`); }}
-                                                sx={{ color: '#64748b', '&:hover': { color: '#f1f5f9' } }}
+                                                sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
                                             >
                                                 <ViewIcon fontSize="small" />
                                             </IconButton>

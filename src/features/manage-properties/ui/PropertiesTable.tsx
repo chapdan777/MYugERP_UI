@@ -63,7 +63,12 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
             </TableRow>
           ) : properties.length > 0 ? (
             properties.map((property) => (
-              <TableRow key={property.id}>
+              <TableRow
+                key={property.id}
+                hover
+                onClick={() => onEdit(property)}
+                sx={{ cursor: 'pointer' }}
+              >
                 <TableCell>{property.name}</TableCell>
                 <TableCell>{property.code}</TableCell>
                 <TableCell>
@@ -90,7 +95,7 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
                 <TableCell align="right">
                   <Tooltip title="Редактировать">
                     <IconButton
-                      onClick={() => onEdit(property)}
+                      onClick={(e) => { e.stopPropagation(); onEdit(property); }}
                       color="primary"
                     >
                       <EditIcon />
@@ -99,7 +104,7 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
 
                   <Tooltip title={property.isActive ? "Деактивировать" : "Активировать"}>
                     <IconButton
-                      onClick={() => onToggleStatus(property)}
+                      onClick={(e) => { e.stopPropagation(); onToggleStatus(property); }}
                       color={property.isActive ? "default" : "primary"}
                     >
                       {property.isActive ? <ArchiveIcon /> : <UnarchiveIcon />}
@@ -114,7 +119,7 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
                     return (
                       <Tooltip key={index} title={action.tooltip}>
                         <IconButton
-                          onClick={() => action.onClick(property)}
+                          onClick={(e) => { e.stopPropagation(); action.onClick(property); }}
                           color="secondary"
                         >
                           {action.icon}

@@ -68,6 +68,10 @@ export interface Order {
   lockedBy: number | null;
   lockedAt: string | null;
   notes: string | null;
+  documentType: string | null;
+  manager: string | null;
+  orderName: string | null;
+  launchDate: string | null;
   sections: OrderSection[];
   createdAt: string;
   updatedAt: string;
@@ -155,8 +159,13 @@ export interface FacadeElement {
 export interface CreateOrderDto {
   clientId: number;
   clientName: string;
-  deadline: string;
+  deadline?: string;
+  documentType?: string;
+  manager?: string;
+  orderName?: string;
+  launchDate?: string;
   notes?: string;
+  sections?: any[];
 }
 
 /**

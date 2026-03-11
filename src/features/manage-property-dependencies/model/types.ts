@@ -7,6 +7,7 @@ export const DependencyType = {
     EXCLUDES: 'excludes',        // Если A выбрано, то B недоступно
     ENABLES: 'enables',          // Если A выбрано, то B становится доступным
     SETS_VALUE: 'sets_value',    // Если A выбрано, то B получает определенное значение
+    INHERITS: 'inherits',
 } as const;
 
 export type DependencyType = typeof DependencyType[keyof typeof DependencyType];

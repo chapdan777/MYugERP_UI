@@ -17,8 +17,8 @@ export const propertyHeadersApi = {
         return response.data;
     },
 
-    getProducts: async (id: number) => {
-        const response = await apiClient.get<HeaderProduct[]>(`/property-headers/${id}/products`);
+    getProducts: async (id: number, params?: { includeInactive?: boolean }) => {
+        const response = await apiClient.get<HeaderProduct[]>(`/property-headers/${id}/products`, { params });
         return response.data;
     },
 };

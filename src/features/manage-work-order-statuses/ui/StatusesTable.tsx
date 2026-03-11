@@ -81,20 +81,25 @@ export const StatusesTable: React.FC<StatusesTableProps> = ({
                 </TableHead>
                 <TableBody>
                     {sortedStatuses.map((status, index) => (
-                        <TableRow key={status.id} hover>
+                        <TableRow
+                            key={status.id}
+                            hover
+                            onClick={() => onEdit(status)}
+                            sx={{ cursor: 'pointer' }}
+                        >
                             <TableCell>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                     <IconButton
                                         size="small"
                                         disabled={index === 0}
-                                        onClick={() => onMoveUp(status)}
+                                        onClick={(e) => { e.stopPropagation(); onMoveUp(status); }}
                                     >
                                         <ArrowUpIcon fontSize="small" />
                                     </IconButton>
                                     <IconButton
                                         size="small"
                                         disabled={index === sortedStatuses.length - 1}
-                                        onClick={() => onMoveDown(status)}
+                                        onClick={(e) => { e.stopPropagation(); onMoveDown(status); }}
                                     >
                                         <ArrowDownIcon fontSize="small" />
                                     </IconButton>
@@ -139,7 +144,7 @@ export const StatusesTable: React.FC<StatusesTableProps> = ({
                             </TableCell>
                             <TableCell align="center">
                                 <Tooltip title="Редактировать">
-                                    <IconButton size="small" onClick={() => onEdit(status)}>
+                                    <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(status); }}>
                                         <EditIcon fontSize="small" />
                                     </IconButton>
                                 </Tooltip>
@@ -147,7 +152,7 @@ export const StatusesTable: React.FC<StatusesTableProps> = ({
                                     <IconButton
                                         size="small"
                                         color="error"
-                                        onClick={() => onDelete(status.id)}
+                                        onClick={(e) => { e.stopPropagation(); onDelete(status.id); }}
                                     >
                                         <DeleteIcon fontSize="small" />
                                     </IconButton>

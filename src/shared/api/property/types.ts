@@ -12,7 +12,7 @@ export interface Property {
     variableName?: string;
 }
 
-export type DependencyType = 'requires' | 'excludes' | 'enables' | 'sets_value';
+export type DependencyType = 'requires' | 'excludes' | 'enables' | 'sets_value' | 'inherits';
 
 export interface PropertyDependency {
     id: number;

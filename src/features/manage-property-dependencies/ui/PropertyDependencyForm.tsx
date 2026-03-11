@@ -125,6 +125,7 @@ const TargetConfigRow: React.FC<{
                         required
                     >
                         <MenuItem value={DependencyType.SETS_VALUE}>Установить значение (SETS_VALUE)</MenuItem>
+                        <MenuItem value={DependencyType.INHERITS}>Наследует (INHERITS)</MenuItem>
                         <MenuItem value={DependencyType.REQUIRES}>Требует (REQUIRES)</MenuItem>
                         <MenuItem value={DependencyType.EXCLUDES}>Исключает (EXCLUDES)</MenuItem>
                         <MenuItem value={DependencyType.ENABLES}>Включает (ENABLES)</MenuItem>

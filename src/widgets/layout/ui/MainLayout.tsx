@@ -1,6 +1,7 @@
 /**
  * Основной Layout приложения
  */
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
@@ -46,6 +47,11 @@ export const MainLayout = ({
   workOrdersCount,
   onSaveAsNew,
 }: MainLayoutProps) => {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <Header
@@ -60,15 +66,17 @@ export const MainLayout = ({
         onNavigateWorkOrders={onNavigateWorkOrders}
         workOrdersCount={workOrdersCount}
         onSaveAsNew={onSaveAsNew}
+        onToggleSidebar={handleDrawerToggle}
       />
-      <Sidebar />
+      <Sidebar open={mobileOpen} onClose={handleDrawerToggle} />
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          ml: `${DRAWER_WIDTH}px`,
+          p: { xs: 1, sm: 2, md: 3 },
+          ml: { md: `${DRAWER_WIDTH}px` },
           minHeight: '100vh',
+          width: { xs: '100%', md: `calc(100% - ${DRAWER_WIDTH}px)` }
         }}
       >
         <Toolbar />

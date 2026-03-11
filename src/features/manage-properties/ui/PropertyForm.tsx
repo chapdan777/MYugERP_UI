@@ -33,7 +33,7 @@ const DATA_TYPES: { value: PropertyDataType; label: string }[] = [
   { value: 'number', label: 'Число' },
   { value: 'boolean', label: 'Логическое значение' },
   { value: 'select', label: 'Выбор из списка' },
-  { value: 'multiselect', label: 'Множественный выбор' },
+  { value: 'multi_select', label: 'Множественный выбор' },
 ];
 
 export const PropertyForm: React.FC<PropertyFormProps> = ({
@@ -61,7 +61,9 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
       setFormData({
         name: property.name || '',
         code: property.code || '',
-        dataType: property.dataType || 'string',
+        dataType: (property.dataType as string) === 'list'
+          ? 'select'
+          : property.dataType || 'string',
         isRequired: property.isRequired || false,
         defaultValue: property.defaultValue || '',
         variableName: property.variableName || '',
@@ -106,10 +108,8 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
         displayOrder: 0,
       };
 
-      // Тип данных можно задать только при создании
-      if (!property) {
-        propertyData.dataType = formData.dataType;
-      }
+      // Тип данных свойства
+      propertyData.dataType = formData.dataType;
 
       if (formData.variableName?.trim()) {
         propertyData.variableName = formData.variableName.trim();
@@ -189,7 +189,7 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
         </Select>
       </FormControl>
 
-      {(formData.dataType === 'select' || formData.dataType === 'multiselect' || formData.dataType === 'boolean') && (
+      {(formData.dataType === 'select' || formData.dataType === 'multi_select' || formData.dataType === 'boolean') && (
         <React.Fragment>
           {property ? (
             <PropertyValueList propertyId={property.id} />

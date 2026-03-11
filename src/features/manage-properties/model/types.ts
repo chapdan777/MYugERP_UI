@@ -6,7 +6,7 @@
 /**
  * Тип данных свойства
  */
-export type PropertyDataType = 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'date';
+export type PropertyDataType = 'string' | 'number' | 'boolean' | 'select' | 'multi_select' | 'date';
 
 /**
  * Интерфейс свойства

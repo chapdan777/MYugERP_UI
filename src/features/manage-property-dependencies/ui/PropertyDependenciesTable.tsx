@@ -67,12 +67,20 @@ const GroupedRow = ({
 
     return (
         <React.Fragment>
-            <TableRow sx={{ '& > *': { borderBottom: 'unset' }, bgcolor: 'action.hover' }}>
+            <TableRow
+                hover
+                onClick={() => setOpen(!open)}
+                sx={{
+                    '& > *': { borderBottom: 'unset' },
+                    bgcolor: 'action.hover',
+                    cursor: 'pointer'
+                }}
+            >
                 <TableCell>
                     <IconButton
                         aria-label="expand row"
                         size="small"
-                        onClick={() => setOpen(!open)}
+                        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
                     >
                         {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                     </IconButton>
@@ -97,7 +105,12 @@ const GroupedRow = ({
                 <TableCell align="right">
                     {onCopy && (
                         <Tooltip title="Копировать это правило (все цели)">
-                            <IconButton onClick={() => onCopy(sourceProp)} color="primary" size="small" sx={{ mr: 1 }}>
+                            <IconButton
+                                onClick={(e) => { e.stopPropagation(); onCopy(sourceProp); }}
+                                color="primary"
+                                size="small"
+                                sx={{ mr: 1 }}
+                            >
                                 <ContentCopyIcon />
                             </IconButton>
                         </Tooltip>
@@ -119,7 +132,12 @@ const GroupedRow = ({
                                 </TableHead>
                                 <TableBody>
                                     {group.map((dep) => (
-                                        <TableRow key={dep.id}>
+                                        <TableRow
+                                            key={dep.id}
+                                            hover
+                                            onClick={() => onEdit?.(dep)}
+                                            sx={{ cursor: 'pointer' }}
+                                        >
                                             <TableCell>{getPropertyName(dep.targetPropertyId)}</TableCell>
                                             <TableCell>
                                                 <Chip
@@ -139,13 +157,22 @@ const GroupedRow = ({
                                             <TableCell align="right">
                                                 {onEdit && (
                                                     <Tooltip title="Редактировать одну цель">
-                                                        <IconButton onClick={() => onEdit(dep)} color="primary" size="small" sx={{ mr: 1 }}>
+                                                        <IconButton
+                                                            onClick={(e) => { e.stopPropagation(); onEdit(dep); }}
+                                                            color="primary"
+                                                            size="small"
+                                                            sx={{ mr: 1 }}
+                                                        >
                                                             <EditIcon fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
                                                 )}
                                                 <Tooltip title="Удалить одну цель">
-                                                    <IconButton onClick={() => onDelete(dep.id)} color="error" size="small">
+                                                    <IconButton
+                                                        onClick={(e) => { e.stopPropagation(); onDelete(dep.id); }}
+                                                        color="error"
+                                                        size="small"
+                                                    >
                                                         <DeleteIcon fontSize="small" />
                                                     </IconButton>
                                                 </Tooltip>
@@ -201,7 +228,12 @@ export const PropertyDependenciesTable: React.FC<PropertyDependenciesTableProps>
                     </TableHead>
                     <TableBody>
                         {dependencies.map((dep) => (
-                            <TableRow key={dep.id}>
+                            <TableRow
+                                key={dep.id}
+                                hover
+                                onClick={() => onEdit?.(dep)}
+                                sx={{ cursor: 'pointer' }}
+                            >
                                 <TableCell>{getPropertyName(dep.sourcePropertyId)}</TableCell>
                                 <TableCell>
                                     {dep.sourceValue ? (
@@ -224,13 +256,22 @@ export const PropertyDependenciesTable: React.FC<PropertyDependenciesTableProps>
                                 <TableCell align="right">
                                     {onEdit && (
                                         <Tooltip title="Редактировать зависимость">
-                                            <IconButton onClick={() => onEdit(dep)} color="primary" size="small" sx={{ mr: 1 }}>
+                                            <IconButton
+                                                onClick={(e) => { e.stopPropagation(); onEdit(dep); }}
+                                                color="primary"
+                                                size="small"
+                                                sx={{ mr: 1 }}
+                                            >
                                                 <EditIcon />
                                             </IconButton>
                                         </Tooltip>
                                     )}
                                     <Tooltip title="Удалить зависимость">
-                                        <IconButton onClick={() => onDelete(dep.id)} color="error" size="small">
+                                        <IconButton
+                                            onClick={(e) => { e.stopPropagation(); onDelete(dep.id); }}
+                                            color="error"
+                                            size="small"
+                                        >
                                             <DeleteIcon />
                                         </IconButton>
                                     </Tooltip>

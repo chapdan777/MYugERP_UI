@@ -59,7 +59,12 @@ export const DepartmentsTable: React.FC<DepartmentsTableProps> = ({ onEdit }) =>
                         {departments.map((department) => (
                             <TableRow
                                 key={department.id}
-                                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                                hover
+                                onClick={() => onEdit(department)}
+                                sx={{
+                                    cursor: 'pointer',
+                                    '&:last-child td, &:last-child th': { border: 0 }
+                                }}
                             >
                                 <TableCell component="th" scope="row">
                                     {department.code}
@@ -78,14 +83,14 @@ export const DepartmentsTable: React.FC<DepartmentsTableProps> = ({ onEdit }) =>
                                 <TableCell align="right">
                                     <IconButton
                                         aria-label="edit"
-                                        onClick={() => onEdit(department)}
+                                        onClick={(e) => { e.stopPropagation(); onEdit(department); }}
                                         size="small"
                                     >
                                         <EditIcon />
                                     </IconButton>
                                     <IconButton
                                         aria-label="delete"
-                                        onClick={() => handleDelete(department.id)}
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(department.id); }}
                                         size="small"
                                         color="error"
                                     >

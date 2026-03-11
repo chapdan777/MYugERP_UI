@@ -94,20 +94,20 @@ const InfoTile: React.FC<InfoTileProps> = ({ icon, label, value, accent }) => (
             gap: 1.5,
             p: 2,
             borderRadius: 2,
-            bgcolor: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.06)',
+            bgcolor: 'action.hover',
+            border: 1, borderColor: 'divider',
             minWidth: 0,
         }}
     >
-        <Box sx={{ color: accent || '#94a3b8', mt: 0.25, flexShrink: 0 }}>{icon}</Box>
+        <Box sx={{ color: accent || 'text.secondary', mt: 0.25, flexShrink: 0 }}>{icon}</Box>
         <Box sx={{ minWidth: 0 }}>
             <Typography
                 variant="caption"
-                sx={{ color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem', display: 'block', mb: 0.25 }}
+                sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem', display: 'block', mb: 0.25 }}
             >
                 {label}
             </Typography>
-            <Typography variant="body2" sx={{ color: accent || '#e2e8f0', fontWeight: 500, wordBreak: 'break-word' }}>
+            <Typography variant="body2" sx={{ color: accent || 'text.primary', fontWeight: 500, wordBreak: 'break-word' }}>
                 {value}
             </Typography>
         </Box>
@@ -161,47 +161,59 @@ function WorkOrderItemRow({ item, idx }: { item: any, idx: number }) {
 
     return (
         <React.Fragment>
-            <TableRow sx={{ '&:last-child col': { borderBottom: 0 }, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+            <TableRow
+                hover
+                onClick={() => hasComps && setOpen(!open)}
+                sx={{
+                    '&:last-child col': { borderBottom: 0 },
+                    '&:hover': { bgcolor: 'action.hover' },
+                    cursor: hasComps ? 'pointer' : 'default'
+                }}
+            >
                 <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1, borderBottom: open ? 'none' : undefined }}>
                     {hasComps ? (
-                        <IconButton size="small" onClick={() => setOpen(!open)} sx={{ color: '#94a3b8', p: 0.5, ml: -1 }}>
+                        <IconButton
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+                            sx={{ color: 'text.secondary', p: 0.5, ml: -1 }}
+                        >
                             {open ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
                         </IconButton>
                     ) : (
                         <Box sx={{ width: 26, ml: -1 }} /> /* Placeholder for alignment */
                     )}
-                    <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>{idx + 1}</Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>{idx + 1}</Typography>
                 </TableCell>
                 <TableCell sx={{ borderBottom: open ? 'none' : undefined }}>
-                    <Typography variant="body2" sx={{ color: '#f1f5f9', fontWeight: 600 }}>
+                    <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>
                         {item.productName || 'Без названия'}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#475569' }}>ID: {item.productId}</Typography>
+                    <Typography variant="caption" sx={{ color: 'text.disabled' }}>ID: {item.productId}</Typography>
                 </TableCell>
                 <TableCell align="center" sx={{ borderBottom: open ? 'none' : undefined }}>
                     <Chip
                         size="small"
                         label={`${item.quantity} ${item.unit}`}
-                        sx={{ bgcolor: 'rgba(56,189,248,0.1)', color: '#38bdf8', fontWeight: 600, fontSize: '0.75rem' }}
+                        sx={{ bgcolor: alpha('#38bdf8', 0.1), color: 'info.main', fontWeight: 600, fontSize: '0.75rem' }}
                     />
                 </TableCell>
                 <TableCell align="center" sx={{ borderBottom: open ? 'none' : undefined }}>
                     {hasDims ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                            <StraightenIcon sx={{ fontSize: 14, color: '#64748b' }} />
-                            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#cbd5e1', fontWeight: 500 }}>
+                            <StraightenIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.primary', fontWeight: 500 }}>
                                 {dims.height}×{dims.width}
                                 {dims.depth > 0 ? `×${dims.depth}` : ''}
                             </Typography>
                         </Box>
                     ) : (
-                        <Typography variant="caption" sx={{ color: '#475569' }}>—</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>—</Typography>
                     )}
                 </TableCell>
                 <TableCell align="right" sx={{ borderBottom: open ? 'none' : undefined }}>
                     <Typography
                         variant="body2"
-                        sx={{ fontWeight: 700, color: item.estimatedHours > 0 ? '#38bdf8' : '#475569' }}
+                        sx={{ fontWeight: 700, color: item.estimatedHours > 0 ? 'info.main' : 'text.disabled' }}
                     >
                         {item.estimatedHours > 0 ? `${item.estimatedHours} ч` : '—'}
                     </Typography>
@@ -209,7 +221,7 @@ function WorkOrderItemRow({ item, idx }: { item: any, idx: number }) {
                 <TableCell align="right" sx={{ borderBottom: open ? 'none' : undefined }}>
                     <Typography
                         variant="body2"
-                        sx={{ fontWeight: 600, color: item.pieceRate > 0 ? '#22c55e' : '#475569' }}
+                        sx={{ fontWeight: 600, color: item.pieceRate > 0 ? 'success.main' : 'text.disabled' }}
                     >
                         {item.pieceRate > 0 ? `${item.pieceRate} ₽` : '—'}
                     </Typography>
@@ -225,17 +237,17 @@ function WorkOrderItemRow({ item, idx }: { item: any, idx: number }) {
                                     label={`${m.materialName}: ${m.quantity} ${m.unit}`}
                                     variant="outlined"
                                     sx={{
-                                        borderColor: 'rgba(148,163,184,0.2)',
-                                        color: '#94a3b8',
+                                        borderColor: 'divider',
+                                        color: 'text.secondary',
                                         fontSize: '0.7rem',
                                         height: 24,
-                                        '& .MuiChip-icon': { color: '#64748b' },
+                                        '& .MuiChip-icon': { color: 'text.secondary' },
                                     }}
                                 />
                             ))}
                         </Box>
                     ) : (
-                        <Typography variant="caption" sx={{ color: '#475569' }}>—</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>—</Typography>
                     )}
                 </TableCell>
             </TableRow>
@@ -243,31 +255,31 @@ function WorkOrderItemRow({ item, idx }: { item: any, idx: number }) {
                 <TableRow>
                     <TableCell style={{ paddingBottom: 0, paddingTop: 0, borderBottom: open ? '1px solid rgba(81, 81, 81, 1)' : 'none' }} colSpan={7}>
                         <Collapse in={open} timeout="auto" unmountOnExit>
-                            <Box sx={{ margin: 1.5, mb: 2, p: 2, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <Typography variant="caption" sx={{ color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, mb: 1, display: 'block' }}>
+                            <Box sx={{ margin: 1.5, mb: 2, p: 2, borderRadius: 2, bgcolor: 'background.default', border: 1, borderColor: 'divider' }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, mb: 1, display: 'block' }}>
                                     СПЕЦИФИКАЦИЯ ДЕТАЛЕЙ ДЛЯ ИЗДЕЛИЯ (BOM)
                                 </Typography>
-                                <Table size="small" aria-label="components" sx={{ '& .MuiTableCell-root': { borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#cbd5e1', py: 1.5 } }}>
+                                <Table size="small" aria-label="components" sx={{ '& .MuiTableCell-root': { borderBottom: 1, borderColor: 'divider', color: 'text.primary', py: 1.5 } }}>
                                     <TableHead>
                                         <TableRow>
-                                            <TableCell sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem' }}>Деталь / Компонент</TableCell>
-                                            <TableCell align="center" sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Длина</TableCell>
-                                            <TableCell align="center" sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Ширина</TableCell>
-                                            <TableCell align="center" sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Толщина</TableCell>
-                                            <TableCell align="right" sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Кол-во</TableCell>
+                                            <TableCell sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem' }}>Деталь / Компонент</TableCell>
+                                            <TableCell align="center" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Длина</TableCell>
+                                            <TableCell align="center" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Ширина</TableCell>
+                                            <TableCell align="center" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Толщина</TableCell>
+                                            <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', width: 100 }}>Кол-во</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
                                         {comps.map((comp, i) => (
-                                            <TableRow key={i} sx={{ '&:last-child td': { borderBottom: 0 }, '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
+                                            <TableRow key={i} sx={{ '&:last-child td': { borderBottom: 0 }, '&:hover': { bgcolor: 'action.hover' } }}>
                                                 <TableCell>
-                                                    <Typography variant="body2" sx={{ color: '#e2e8f0', fontWeight: 500 }}>
+                                                    <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500 }}>
                                                         {comp.name}
                                                     </Typography>
                                                     {comp.childProductName && (
-                                                        <Typography variant="caption" sx={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                                                            <Box component="span" sx={{ display: 'inline-block', width: 4, height: 4, borderRadius: '50%', bgcolor: '#38bdf8' }} />
-                                                            Вложенный продукт: <span style={{ color: '#94a3b8' }}>{comp.childProductName}</span>
+                                                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                                                            <Box component="span" sx={{ display: 'inline-block', width: 4, height: 4, borderRadius: '50%', bgcolor: 'info.main' }} />
+                                                            Вложенный продукт: <span style={{ color: 'text.secondary' }}>{comp.childProductName}</span>
                                                         </Typography>
                                                     )}
                                                 </TableCell>
@@ -290,7 +302,7 @@ function WorkOrderItemRow({ item, idx }: { item: any, idx: number }) {
                                                     <Chip
                                                         size="small"
                                                         label={`${comp.quantity} шт`}
-                                                        sx={{ bgcolor: 'rgba(234,179,8,0.1)', color: '#eab308', fontWeight: 600, fontSize: '0.75rem', height: 22 }}
+                                                        sx={{ bgcolor: alpha('#eab308', 0.1), color: 'warning.main', fontWeight: 600, fontSize: '0.75rem', height: 22 }}
                                                     />
                                                 </TableCell>
                                             </TableRow>
@@ -374,7 +386,7 @@ export const WorkOrderDetailsPage = () => {
             <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
 
                 {/* ── back ────────────────────── */}
-                <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/work-orders')} sx={{ mb: 2, color: '#94a3b8' }}>
+                <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/work-orders')} sx={{ mb: 2, color: 'text.secondary' }}>
                     Назад к списку
                 </Button>
 
@@ -384,12 +396,12 @@ export const WorkOrderDetailsPage = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
                         {/* left: number + order */}
                         <Box>
-                            <Typography variant="h5" fontWeight={700} sx={{ color: '#f1f5f9', letterSpacing: '-0.01em' }}>
+                            <Typography variant="h5" fontWeight={700} sx={{ color: 'text.primary', letterSpacing: '-0.01em' }}>
                                 {workOrder.workOrderNumber}
                             </Typography>
-                            <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
+                            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                                 Заказ&nbsp;
-                                <Box component="span" sx={{ color: '#94a3b8', fontWeight: 600 }}>{workOrder.orderNumber}</Box>
+                                <Box component="span" sx={{ color: 'text.secondary', fontWeight: 600 }}>{workOrder.orderNumber}</Box>
                             </Typography>
                         </Box>
 
@@ -398,7 +410,7 @@ export const WorkOrderDetailsPage = () => {
                             <Chip
                                 label={statusName}
                                 sx={{
-                                    backgroundColor: alpha(statusColor, 0.18),
+                                    backgroundColor: alpha(statusColor, 0.1),
                                     color: statusColor,
                                     fontWeight: 600,
                                     border: `1px solid ${alpha(statusColor, 0.35)}`,
@@ -407,7 +419,7 @@ export const WorkOrderDetailsPage = () => {
                                 }}
                             />
                             {workOrder.totalPieceRatePayment > 0 && (
-                                <Typography variant="h6" sx={{ color: '#22c55e', fontWeight: 700 }}>
+                                <Typography variant="h6" sx={{ color: 'success.main', fontWeight: 700 }}>
                                     {workOrder.totalPieceRatePayment.toLocaleString('ru-RU')} ₽
                                 </Typography>
                             )}
@@ -417,13 +429,13 @@ export const WorkOrderDetailsPage = () => {
                     {/* ── status stepper ── */}
                     <Box sx={{ mt: 3, mb: 2 }}>
                         <Stepper activeStep={currentIndex} alternativeLabel sx={{
-                            '& .MuiStepLabel-label': { fontSize: '0.7rem', color: '#64748b' },
-                            '& .MuiStepLabel-label.Mui-active': { color: '#f1f5f9', fontWeight: 600 },
-                            '& .MuiStepLabel-label.Mui-completed': { color: '#94a3b8' },
-                            '& .MuiStepIcon-root': { color: 'rgba(148,163,184,0.25)' },
+                            '& .MuiStepLabel-label': { fontSize: '0.7rem', color: 'text.secondary' },
+                            '& .MuiStepLabel-label.Mui-active': { color: 'text.primary', fontWeight: 600 },
+                            '& .MuiStepLabel-label.Mui-completed': { color: 'text.secondary' },
+                            '& .MuiStepIcon-root': { color: 'action.disabled' },
                             '& .MuiStepIcon-root.Mui-active': { color: statusColor },
-                            '& .MuiStepIcon-root.Mui-completed': { color: '#22c55e' },
-                            '& .MuiStepConnector-line': { borderColor: 'rgba(148,163,184,0.2)' },
+                            '& .MuiStepIcon-root.Mui-completed': { color: 'success.main' },
+                            '& .MuiStepConnector-line': { borderColor: 'divider' },
                         }}>
                             {sortedStatuses.map(s => (
                                 <Step key={s.id} completed={sortedStatuses.indexOf(s) < currentIndex}>
@@ -433,7 +445,7 @@ export const WorkOrderDetailsPage = () => {
                         </Stepper>
                     </Box>
 
-                    <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', my: 2 }} />
+                    <Divider sx={{ borderColor: 'divider', my: 2 }} />
 
                     {/* ── action buttons ── */}
                     <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
@@ -461,7 +473,7 @@ export const WorkOrderDetailsPage = () => {
                                 color="error"
                                 startIcon={<CloseIcon />}
                                 onClick={() => setCancelDialogOpen(true)}
-                                sx={{ borderColor: 'rgba(239,68,68,0.4)' }}
+                                sx={{ borderColor: alpha('#ef4444', 0.4) }}
                             >
                                 Отменить
                             </Button>
@@ -471,14 +483,14 @@ export const WorkOrderDetailsPage = () => {
 
                 {/* ══════════════ TABS ══════════════ */}
                 <GlassCard sx={{ p: 0, overflow: 'hidden' }}>
-                    <Box sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)', px: 3, pt: 1 }}>
+                    <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3, pt: 1 }}>
                         <Tabs
                             value={tabValue}
                             onChange={handleTabChange}
                             sx={{
-                                '& .MuiTab-root': { textTransform: 'none', fontWeight: 500, color: '#64748b', minHeight: 48 },
-                                '& .Mui-selected': { color: '#f1f5f9 !important' },
-                                '& .MuiTabs-indicator': { backgroundColor: '#ef5350', height: 2 },
+                                '& .MuiTab-root': { textTransform: 'none', fontWeight: 500, color: 'text.secondary', minHeight: 48 },
+                                '& .Mui-selected': { color: 'text.primary !important' },
+                                '& .MuiTabs-indicator': { backgroundColor: 'primary.main', height: 2 },
                             }}
                         >
                             <Tab label="Информация" />
@@ -498,10 +510,10 @@ export const WorkOrderDetailsPage = () => {
                                     <InfoTile icon={<BuildIcon fontSize="small" />} label="Операция" value={workOrder.operationName} />
                                 </Grid>
                                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <InfoTile icon={<CalendarTodayIcon fontSize="small" />} label="Дедлайн" value={fmtDate(workOrder.deadline)} accent={workOrder.effectivePriority >= 9 ? '#ef4444' : undefined} />
+                                    <InfoTile icon={<CalendarTodayIcon fontSize="small" />} label="Дедлайн" value={fmtDate(workOrder.deadline)} accent={workOrder.effectivePriority >= 9 ? 'error.main' : undefined} />
                                 </Grid>
                                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <InfoTile icon={<PriorityHighIcon fontSize="small" />} label="Приоритет" value={<><Chip size="small" label={prio.label} sx={{ backgroundColor: alpha(prio.color, 0.15), color: prio.color, fontWeight: 600, fontSize: '0.7rem', height: 22 }} /> <Box component="span" sx={{ ml: 0.5, color: '#64748b', fontSize: '0.75rem' }}>({workOrder.effectivePriority})</Box></>} />
+                                    <InfoTile icon={<PriorityHighIcon fontSize="small" />} label="Приоритет" value={<><Chip size="small" label={prio.label} sx={{ backgroundColor: alpha(prio.color, 0.1), color: prio.color, fontWeight: 600, fontSize: '0.7rem', height: 22 }} /> <Box component="span" sx={{ ml: 0.5, color: 'text.secondary', fontSize: '0.75rem' }}>({workOrder.effectivePriority})</Box></>} />
                                 </Grid>
                                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <InfoTile icon={<AccessTimeIcon fontSize="small" />} label="Норма (всего)" value={fmt(workOrder.totalEstimatedHours, 'ч')} accent="#38bdf8" />
@@ -530,10 +542,10 @@ export const WorkOrderDetailsPage = () => {
                                 alignItems: 'center',
                                 flexWrap: 'wrap',
                                 gap: 2,
-                                bgcolor: 'rgba(255,255,255,0.02)',
+                                bgcolor: 'action.hover',
                                 p: 1.5,
                                 borderRadius: 2,
-                                border: '1px solid rgba(255,255,255,0.05)'
+                                border: 1, borderColor: 'divider'
                             }}>
                                 <ToggleButtonGroup
                                     value={positionsViewMode}
@@ -542,13 +554,13 @@ export const WorkOrderDetailsPage = () => {
                                     size="small"
                                     sx={{
                                         '& .MuiToggleButton-root': {
-                                            color: '#64748b',
-                                            borderColor: 'rgba(148,163,184,0.2)',
+                                            color: 'text.secondary',
+                                            borderColor: 'divider',
                                             px: 2,
                                             '&.Mui-selected': {
-                                                color: '#38bdf8',
-                                                bgcolor: 'rgba(56,189,248,0.1)',
-                                                '&:hover': { bgcolor: 'rgba(56,189,248,0.15)' }
+                                                color: 'info.main',
+                                                bgcolor: alpha('#38bdf8', 0.1),
+                                                '&:hover': { bgcolor: alpha('#38bdf8', 0.15) }
                                             }
                                         }
                                     }}
@@ -571,13 +583,13 @@ export const WorkOrderDetailsPage = () => {
                                                 checked={groupComponents}
                                                 onChange={(e) => setGroupComponents(e.target.checked)}
                                                 sx={{
-                                                    '& .MuiSwitch-switchBase.Mui-checked': { color: '#38bdf8' },
-                                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: '#38bdf8' }
+                                                    '& .MuiSwitch-switchBase.Mui-checked': { color: 'info.main' },
+                                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: 'info.main' }
                                                 }}
                                             />
                                         }
                                         label={
-                                            <Typography variant="body2" sx={{ color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                                 <LayersIcon sx={{ fontSize: 16 }} />
                                                 Группировать детали
                                             </Typography>
@@ -663,16 +675,16 @@ export const WorkOrderDetailsPage = () => {
                                                     grouped.sort((a, b) => a.name.localeCompare(b.name) || b.length - a.length);
 
                                                     return grouped.map((comp, i) => (
-                                                        <TableRow key={i} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                                                        <TableRow key={i} sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
                                                             <TableCell sx={{ py: 1.5 }}>
-                                                                <Typography variant="body2" sx={{ color: '#f1f5f9', fontWeight: 600 }}>{comp.name}</Typography>
-                                                                {comp.childProductName && <Typography variant="caption" sx={{ color: '#64748b' }}>{comp.childProductName}</Typography>}
+                                                                <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>{comp.name}</Typography>
+                                                                {comp.childProductName && <Typography variant="caption" sx={{ color: 'text.secondary' }}>{comp.childProductName}</Typography>}
                                                             </TableCell>
                                                             <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.length} мм</TableCell>
                                                             <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.width} мм</TableCell>
                                                             <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.depth || '—'}</TableCell>
                                                             <TableCell align="right">
-                                                                <Chip size="small" label={`${comp.quantity} шт`} sx={{ bgcolor: 'rgba(234,179,8,0.1)', color: '#eab308', fontWeight: 700 }} />
+                                                                <Chip size="small" label={`${comp.quantity} шт`} sx={{ bgcolor: alpha('#eab308', 0.1), color: 'warning.main', fontWeight: 700 }} />
                                                             </TableCell>
                                                         </TableRow>
                                                     ));
@@ -680,21 +692,21 @@ export const WorkOrderDetailsPage = () => {
 
                                                 // Individual view (preserving parent grouping by default)
                                                 return allComps.map((comp, i) => (
-                                                    <TableRow key={i} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                                                    <TableRow key={i} sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
                                                         <TableCell sx={{ py: 1.5 }}>
-                                                            <Typography variant="body2" sx={{ color: '#f1f5f9', fontWeight: 600 }}>{comp.name}</Typography>
-                                                            {comp.childProductName && <Typography variant="caption" sx={{ color: '#64748b' }}>{comp.childProductName}</Typography>}
+                                                            <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>{comp.name}</Typography>
+                                                            {comp.childProductName && <Typography variant="caption" sx={{ color: 'text.secondary' }}>{comp.childProductName}</Typography>}
                                                         </TableCell>
                                                         <TableCell>
-                                                            <Typography variant="caption" sx={{ color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                                <Box component="span" sx={{ color: '#64748b' }}>#{comp.parentIdx}</Box> {comp.parentName}
+                                                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                                <Box component="span" sx={{ color: 'text.secondary' }}>#{comp.parentIdx}</Box> {comp.parentName}
                                                             </Typography>
                                                         </TableCell>
                                                         <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.length} мм</TableCell>
                                                         <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.width} мм</TableCell>
                                                         <TableCell align="center" sx={{ fontFamily: 'monospace' }}>{comp.depth || '—'}</TableCell>
                                                         <TableCell align="right">
-                                                            <Chip size="small" label={`${comp.quantity} шт`} sx={{ bgcolor: 'rgba(56,189,248,0.1)', color: '#38bdf8', fontWeight: 600 }} />
+                                                            <Chip size="small" label={`${comp.quantity} шт`} sx={{ bgcolor: alpha('#38bdf8', 0.1), color: 'info.main', fontWeight: 600 }} />
                                                         </TableCell>
                                                     </TableRow>
                                                 ));
@@ -710,21 +722,21 @@ export const WorkOrderDetailsPage = () => {
                                     mt: 2,
                                     p: 2,
                                     borderRadius: 2,
-                                    bgcolor: 'rgba(34,197,94,0.06)',
+                                    bgcolor: alpha('#22c55e', 0.1),
                                     border: '1px solid rgba(34,197,94,0.15)',
                                     display: 'flex',
                                     justifyContent: 'flex-end',
                                     gap: 4,
                                 }}>
                                     <Box sx={{ textAlign: 'right' }}>
-                                        <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Итого норма</Typography>
-                                        <Typography variant="body1" sx={{ color: '#38bdf8', fontWeight: 700 }}>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Итого норма</Typography>
+                                        <Typography variant="body1" sx={{ color: 'info.main', fontWeight: 700 }}>
                                             {fmt(workOrder.totalEstimatedHours, 'ч')}
                                         </Typography>
                                     </Box>
                                     <Box sx={{ textAlign: 'right' }}>
-                                        <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Итого стоимость</Typography>
-                                        <Typography variant="body1" sx={{ color: '#22c55e', fontWeight: 700 }}>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Итого стоимость</Typography>
+                                        <Typography variant="body1" sx={{ color: 'success.main', fontWeight: 700 }}>
                                             {fmt(workOrder.totalPieceRatePayment, '₽')}
                                         </Typography>
                                     </Box>
@@ -736,7 +748,7 @@ export const WorkOrderDetailsPage = () => {
                     {/* ── Notes tab ── */}
                     <TabPanel value={tabValue} index={2}>
                         <Box sx={{ px: 3, pb: 3 }}>
-                            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', color: '#cbd5e1' }}>
+                            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', color: 'text.primary' }}>
                                 {workOrder.notes || 'Нет заметок'}
                             </Typography>
                         </Box>

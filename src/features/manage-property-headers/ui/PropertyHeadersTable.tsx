@@ -79,7 +79,12 @@ const PropertyHeadersTable: React.FC<PropertyHeadersTableProps> = ({
           {headers.map((header) => (
             <TableRow
               key={header.id}
-              sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+              hover
+              onClick={() => onEdit(header)}
+              sx={{
+                cursor: 'pointer',
+                '&:last-child td, &:last-child th': { border: 0 }
+              }}
             >
               <TableCell component="th" scope="row">
                 <Typography fontWeight="medium">
@@ -87,9 +92,9 @@ const PropertyHeadersTable: React.FC<PropertyHeadersTableProps> = ({
                 </Typography>
               </TableCell>
               <TableCell>
-                <Chip 
-                  label={`Тип ${header.orderTypeId}`} 
-                  size="small" 
+                <Chip
+                  label={`Тип ${header.orderTypeId}`}
+                  size="small"
                   variant="outlined"
                 />
               </TableCell>
@@ -116,28 +121,28 @@ const PropertyHeadersTable: React.FC<PropertyHeadersTableProps> = ({
               </TableCell>
               <TableCell align="center">
                 <Tooltip title="Редактировать">
-                  <IconButton 
-                    size="small" 
-                    onClick={() => onEdit(header)}
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); onEdit(header); }}
                   >
                     <EditIcon />
                   </IconButton>
                 </Tooltip>
-                
+
                 <Tooltip title="Добавить элементы">
-                  <IconButton 
-                    size="small" 
-                    onClick={() => onAddItem(header)}
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); onAddItem(header); }}
                   >
                     <AddItemIcon />
                   </IconButton>
                 </Tooltip>
-                
+
                 {header.isActive ? (
                   <Tooltip title="Деактивировать">
-                    <IconButton 
-                      size="small" 
-                      onClick={() => onDeactivate(header.id)}
+                    <IconButton
+                      size="small"
+                      onClick={(e) => { e.stopPropagation(); onDeactivate(header.id); }}
                       color="warning"
                     >
                       <InactiveIcon />
@@ -145,20 +150,20 @@ const PropertyHeadersTable: React.FC<PropertyHeadersTableProps> = ({
                   </Tooltip>
                 ) : (
                   <Tooltip title="Активировать">
-                    <IconButton 
-                      size="small" 
-                      onClick={() => onActivate(header.id)}
+                    <IconButton
+                      size="small"
+                      onClick={(e) => { e.stopPropagation(); onActivate(header.id); }}
                       color="success"
                     >
                       <ActiveIcon />
                     </IconButton>
                   </Tooltip>
                 )}
-                
+
                 <Tooltip title="Удалить">
-                  <IconButton 
-                    size="small" 
-                    onClick={() => onDelete(header.id)}
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); onDelete(header.id); }}
                     color="error"
                   >
                     <DeleteIcon />

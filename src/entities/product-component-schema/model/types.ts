@@ -70,9 +70,12 @@ export interface NestedProductNode {
     properties: Array<{
         propertyId: number;
         propertyName: string;
+        propertyCode?: string;
         defaultValue: string | null;
         isRequired: boolean;
     }>;
     /** Дочерние компоненты (рекурсия) */
     children: NestedProductNode[];
+    /** Формула условия для отображения компонента из BOM */
+    conditionFormula?: string | null;
 }

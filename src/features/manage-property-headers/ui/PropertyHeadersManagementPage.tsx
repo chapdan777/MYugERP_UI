@@ -184,7 +184,7 @@ const PropertyHeadersManagementPage: React.FC = () => {
 
   if (isError) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
         <Alert severity="error">
           Ошибка загрузки данных: {(error as Error)?.message || 'Неизвестная ошибка'}
         </Alert>
@@ -193,14 +193,15 @@ const PropertyHeadersManagementPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box sx={{ p: { xs: 0, sm: 1, md: 3 } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h5">
           Управление шапками свойств
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
+          size="small"
           onClick={handleCreateClick}
         >
           Создать шапку

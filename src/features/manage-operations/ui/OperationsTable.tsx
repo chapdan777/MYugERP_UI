@@ -75,7 +75,12 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                 </TableHead>
                 <TableBody>
                     {operations.map((operation) => (
-                        <TableRow key={operation.id} hover>
+                        <TableRow
+                            key={operation.id}
+                            hover
+                            onClick={() => onEdit(operation)}
+                            sx={{ cursor: 'pointer' }}
+                        >
                             <TableCell>
                                 <Typography variant="body2" fontWeight="medium">
                                     {operation.code}
@@ -113,7 +118,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                                 <Tooltip title="Редактировать">
                                     <IconButton
                                         size="small"
-                                        onClick={() => onEdit(operation)}
+                                        onClick={(e) => { e.stopPropagation(); onEdit(operation); }}
                                     >
                                         <EditIcon fontSize="small" />
                                     </IconButton>
@@ -122,7 +127,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                                     <IconButton
                                         size="small"
                                         color="error"
-                                        onClick={() => onDelete(operation.id)}
+                                        onClick={(e) => { e.stopPropagation(); onDelete(operation.id); }}
                                     >
                                         <DeleteIcon fontSize="small" />
                                     </IconButton>

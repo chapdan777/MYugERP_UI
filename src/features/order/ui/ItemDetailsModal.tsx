@@ -12,9 +12,16 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import MenuItem from '@mui/material/MenuItem';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import { useGetProductProperties } from '../../manage-products/model/product.hooks';
 import { propertyApi } from '@shared/api/property';
 import type { Property } from '@shared/api/property/types';
@@ -24,6 +31,7 @@ import { pricingApi } from '@shared/api/pricing';
 import { useProductComponentSchemas } from '../../../entities/product-component-schema/model/useProductComponentSchemas';
 import { useNestedProductProperties } from '../../../entities/product-component-schema/model/useNestedProductProperties';
 import { NestedPropertyTabs } from './NestedPropertyTabs';
+import type { NestedProductNode } from '../../../entities/product-component-schema/model/types';
 
 interface ItemDetailsModalProps {
     open: boolean;
@@ -37,13 +45,11 @@ interface ItemDetailsModalProps {
 }
 
 export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemName, calculationResult, sectionProperties }: ItemDetailsModalProps) => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
     // Локальное состояние для редактирования, чтобы UI обновлялся мгновенно
     const [localItem, setLocalItem] = useState<CreateOrderItemDto | null>(item);
-
-    // Синхронизация удалена, так как используем key={index} в родительском компоненте для сброса состояния
-    // useEffect(() => {
-    //    setLocalItem(item);
-    // }, [item]);
 
     const [localCalcResult, setLocalCalcResult] = useState<PriceCalculationResult | undefined>(calculationResult);
     const [isCalculating, setIsCalculating] = useState(false);
@@ -59,20 +65,180 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
     const [allProperties, setAllProperties] = useState<Property[]>([]);
     const [productProps, setProductProps] = useState<any[]>([]);
     const [selectedPropToAdd, setSelectedPropToAdd] = useState<string>('');
-    const { schemas: productComposition } = useProductComponentSchemas(Number(localItem?.productId));
+    useProductComponentSchemas(Number(localItem?.productId));
     const { nestedProperties, isLoading: nestedLoading } = useNestedProductProperties(
         localItem?.productId ? Number(localItem.productId) : null
     );
 
     // Локальное состояние для вложенных свойств (ключ — productId дочерней номенклатуры)
     const [nestedValues, setNestedValues] = useState<Record<number, OrderPropertyDto[]>>({});
+    // Флаг, что первичная инициализация из localItem завершена (предотвращает гонки при открытии)
+    const [isInitialized, setIsInitialized] = useState(false);
+
+    // Сбрасываем флаг инициализации при открытии
+    useEffect(() => {
+        if (open) setIsInitialized(false);
+    }, [open]);
+
+    // Вспомогательная функция для слияния свойств родителя и секции (создает "полный контекст")
+    const getCombinedParentProps = useCallback(() => {
+        return [...(localItem?.properties || []), ...(sectionProperties || [])].reduce((acc, curr) => {
+            if (!acc.find(p => p.propertyId === curr.propertyId)) {
+                // Обогащаем свойство полем variableName для поддержки вычисления формул
+                const propGlobal = allProperties?.find(gp => gp.id === curr.propertyId);
+                const enriched = { ...curr };
+                if (propGlobal?.variableName) {
+                    enriched.variableName = propGlobal.variableName;
+                }
+                acc.push(enriched);
+            }
+            return acc;
+        }, [] as OrderPropertyDto[]);
+    }, [localItem?.properties, sectionProperties, allProperties]);
+
+    /** 
+     * Рекурсивное применение наследования свойств (INHERITS)
+     */
+    const applyDeepInheritance = (
+        nodes: NestedProductNode[],
+        parentProps: OrderPropertyDto[],
+        currentNestedValues: Record<number, OrderPropertyDto[]>
+    ): { updatedValues: Record<number, OrderPropertyDto[]>, hasChanges: boolean } => {
+        let hasChanges = false;
+        const newValues = { ...currentNestedValues };
+
+        const parentCodeMap = new Map<string, string>();
+        parentProps.forEach(p => {
+            if (p.propertyCode) {
+                parentCodeMap.set(p.propertyCode, p.value);
+            }
+        });
+
+        nodes.forEach(node => {
+            const childId = node.productId;
+            let childProps = [...(newValues[childId] || [])];
+            let childChanged = false;
+
+            // ГАРАНТИЯ: Инициализируем свойства из метаданных или восстанавливаем коды
+            node.properties.forEach(propDef => {
+                const existingIdx = childProps.findIndex(p => p.propertyId === propDef.propertyId);
+                if (existingIdx === -1) {
+                    console.log(`[Inheritance] Initializing property ${propDef.propertyName} for ${node.productName}`);
+                    const propGlobal = allProperties?.find(gp => gp.id === propDef.propertyId);
+                    childProps.push({
+                        propertyId: propDef.propertyId,
+                        propertyName: propDef.propertyName,
+                        propertyCode: propDef.propertyCode || '',
+                        value: propDef.defaultValue || '',
+                        variableName: propGlobal?.variableName || undefined
+                    });
+                    childChanged = true;
+                    hasChanges = true;
+                } else {
+                    // Восстанавливаем код свойства, если он потерялся (для старых данных)
+                    const propGlobal = allProperties?.find(gp => gp.id === childProps[existingIdx].propertyId);
+
+                    if (!childProps[existingIdx].propertyCode && propDef.propertyCode) {
+                        childProps[existingIdx] = {
+                            ...childProps[existingIdx],
+                            propertyCode: propDef.propertyCode,
+                            variableName: propGlobal?.variableName || undefined
+                        };
+                        childChanged = true;
+                        hasChanges = true;
+                    } else if (propGlobal?.variableName && !childProps[existingIdx].variableName) {
+                        // Добавляем variableName, если его нет
+                        childProps[existingIdx] = {
+                            ...childProps[existingIdx],
+                            variableName: propGlobal.variableName
+                        };
+                        childChanged = true;
+                        hasChanges = true;
+                    }
+                }
+            });
+
+            // Наследуем свойства от родителя к текущему узлу по коду
+            // ВАЖНО: не наследуем пустые значения от родителя, т.к. они могут перезаписать
+            // значения, установленные через зависимости (sets_value) или вручную
+            for (let i = 0; i < childProps.length; i++) {
+                const childProp = childProps[i];
+                if (childProp.propertyCode) {
+                    const parentValue = parentCodeMap.get(childProp.propertyCode);
+                    if (parentValue !== undefined && parentValue !== '' && childProp.value !== parentValue) {
+                        console.log(`[Inheritance] ${node.productName}: Inheriting ${childProp.propertyCode} = ${parentValue}`);
+                        childProps[i] = { ...childProp, value: parentValue };
+                        childChanged = true;
+                        hasChanges = true;
+                    }
+                }
+            }
+
+            if (childChanged) {
+                newValues[childId] = childProps;
+            }
+
+            if (node.children.length > 0) {
+                const result = applyDeepInheritance(node.children, childProps, newValues);
+                if (result.hasChanges) {
+                    Object.assign(newValues, result.updatedValues);
+                    hasChanges = true;
+                }
+            }
+        });
+
+        return { updatedValues: newValues, hasChanges };
+    };
+
+    // ЕДИНЫЙ эффект для инициализации и авто-наследования
+    useEffect(() => {
+        if (!open || nestedLoading || nestedProperties.length === 0) return;
+
+        // База: если еще не инициализированы - берем из localItem, иначе из текущего состояния
+        const baseValues = !isInitialized && localItem?.nestedProperties
+            ? localItem.nestedProperties
+            : nestedValues;
+
+        const { updatedValues, hasChanges } = applyDeepInheritance(
+            nestedProperties,
+            getCombinedParentProps(),
+            baseValues
+        );
+
+        // Обновляем состояние, если это первая инициализация ИЛИ произошли изменения в наследовании
+        if (!isInitialized || hasChanges) {
+            console.log("[Inheritance] Syncing nested properties. Changes detected:", hasChanges);
+            setNestedValues(updatedValues);
+            setIsInitialized(true);
+
+            if (hasChanges && localItem) {
+                const updatedItem = { ...localItem, nestedProperties: updatedValues };
+                setLocalItem(updatedItem);
+                onSave(updatedItem);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, nestedLoading, nestedProperties, localItem?.properties, sectionProperties, isInitialized]);
 
     /** Обработчик изменения свойств вложенного компонента */
     const handleNestedPropertiesChange = (productId: number, values: OrderPropertyDto[]) => {
-        setNestedValues(prev => ({
-            ...prev,
+        const baseNestedValues = {
+            ...nestedValues,
             [productId]: values,
-        }));
+        };
+
+        const { updatedValues } = applyDeepInheritance(
+            nestedProperties,
+            getCombinedParentProps(),
+            baseNestedValues
+        );
+
+        setNestedValues(updatedValues);
+        if (localItem) {
+            const updatedItem = { ...localItem, nestedProperties: updatedValues };
+            setLocalItem(updatedItem);
+            onSave(updatedItem);
+        }
     };
 
     // Fetch product and global properties on open
@@ -88,16 +254,12 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
         }
     }, [open, localItem?.productId]);
 
-    // Вычисляем доступные для добавления свойства: берем свойства, привязанные к этому продукту, но еще не добавленные позицию
+    // Вычисляем доступные для добавления свойства
     const availablePropertiesToAdd = productProps.filter((pp: any) => {
-        // Убираем те, что уже добавлены в позицию
         const isAlreadyAdded = localItem?.properties?.some((p: any) => p.propertyId === pp.propertyId);
         if (isAlreadyAdded) return false;
-
-        // Также проверим, существует ли это свойство в глобальном справочнике
         const propGlobal = allProperties.find(gp => gp.id === pp.propertyId);
         if (!propGlobal) return false;
-
         return true;
     }).map((pp: any) => {
         const propGlobal = allProperties.find(gp => gp.id === pp.propertyId);
@@ -134,17 +296,7 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
         setIsCalculating(true);
         setError(null);
         try {
-            // Слияние свойств: свойства позиции > свойства секции
-            // Свойства позиции идут ПЕРВЫМИ, чтобы иметь приоритет (reduce сохраняет первое вхождение)
-            const mergedProperties = [
-                ...(localItem.properties || []),
-                ...(sectionProperties || [])
-            ].reduce((acc, curr) => {
-                if (!acc.find(p => p.propertyId === curr.propertyId)) {
-                    acc.push(curr);
-                }
-                return acc;
-            }, [] as OrderPropertyDto[]);
+            const mergedProperties = getCombinedParentProps();
 
             const requestPayload = {
                 basePrice: 0,
@@ -160,19 +312,14 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
             };
 
             const result = await pricingApi.calculatePrice(requestPayload);
-
             setLocalCalcResult(result);
         } catch (error: any) {
             console.error('Failed to calculate price:', error);
-            if (error?.response?.status === 401) {
-                setError('Ошибка авторизации. Обновите страницу или перезайдите.');
-            } else {
-                setError('Ошибка расчета цены');
-            }
+            setError(error?.response?.status === 401 ? 'Ошибка авторизации' : 'Ошибка расчета цены');
         } finally {
             setIsCalculating(false);
         }
-    }, [localItem, sectionProperties]);
+    }, [localItem, getCombinedParentProps]);
 
     // Автоматический расчет при открытии, если результат отсутствует
     useEffect(() => {
@@ -199,13 +346,25 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
 
     const handlePropertiesChange = (newProperties: OrderPropertyDto[]) => {
         const updatedItem = { ...localItem, properties: newProperties };
-        setLocalItem(updatedItem); // Мгновенное обновление UI
-        onSave(updatedItem); // Отправка в родительский компонент
+
+        // Глубокое рекурсивное наследование (INHERITS)
+        const { updatedValues, hasChanges } = applyDeepInheritance(
+            nestedProperties,
+            getCombinedParentProps(), // Тут важно использовать актуальные смерженные свойства
+            nestedValues
+        );
+
+        if (hasChanges) {
+            setNestedValues(updatedValues);
+            updatedItem.nestedProperties = updatedValues;
+        }
+
+        setLocalItem(updatedItem);
+        onSave(updatedItem);
     };
 
-
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
             <DialogTitle>
                 <Box>
                     <Typography variant="h6">Детали позиции</Typography>
@@ -270,7 +429,7 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                     <Box sx={{ mb: 2 }}>
                         <NestedPropertyTabs
                             nestedNodes={nestedProperties}
-                            headerId={headerId}
+                            parentProperties={getCombinedParentProps()}
                             nestedValues={nestedValues}
                             onNestedChange={handleNestedPropertiesChange}
                             isLoading={nestedLoading}
@@ -313,7 +472,6 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                                     <Box sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 1, fontSize: '0.875rem', pl: 2 }}>
                                         <Box sx={{ color: 'text.secondary' }}>Базовая цена:</Box>
                                         <Box sx={{ fontWeight: 600 }}>{localCalcResult.basePrice} ₽</Box>
-
                                         <Box sx={{ color: 'text.secondary' }}>Размеры:</Box>
                                         <Box>
                                             {(() => {
@@ -323,14 +481,45 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                                                 return `${length} × ${width} мм (S = ${area.toFixed(4)} m²)`;
                                             })()}
                                         </Box>
-
                                         <Box sx={{ color: 'text.secondary' }}>Количество:</Box>
                                         <Box>{localCalcResult.quantity} шт</Box>
-
                                         <Box sx={{ color: 'text.secondary' }}>Тип единиц:</Box>
                                         <Box>{localCalcResult.unitType === 'm2' ? 'м²' : localCalcResult.unitType === 'linear_meter' ? 'п.м.' : 'шт'}</Box>
                                     </Box>
                                 </Box>
+
+                                {/* Состав изделия (BOM) */}
+                                {localCalcResult.components && localCalcResult.components.length > 0 && (
+                                    <Box>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'info.main' }}>
+                                            🧱 Состав изделия (Деталировка)
+                                        </Typography>
+                                        <Box sx={{ pl: 0, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                                            <Table size="small">
+                                                <TableHead sx={{ bgcolor: 'action.hover' }}>
+                                                    <TableRow>
+                                                        <TableCell sx={{ fontWeight: 600, py: 0.5 }}>Деталь</TableCell>
+                                                        <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>L (мм)</TableCell>
+                                                        <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>W (мм)</TableCell>
+                                                        <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>T (мм)</TableCell>
+                                                        <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>Кол-во</TableCell>
+                                                    </TableRow>
+                                                </TableHead>
+                                                <TableBody>
+                                                    {localCalcResult.components.map((comp: any, i: number) => (
+                                                        <TableRow key={i} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                                            <TableCell sx={{ py: 0.5 }}>{comp.name}</TableCell>
+                                                            <TableCell align="right" sx={{ py: 0.5 }}>{comp.length}</TableCell>
+                                                            <TableCell align="right" sx={{ py: 0.5 }}>{comp.width}</TableCell>
+                                                            <TableCell align="right" sx={{ py: 0.5 }}>{comp.depth || 0}</TableCell>
+                                                            <TableCell align="right" sx={{ py: 0.5 }}>{comp.quantity}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </Box>
+                                    </Box>
+                                )}
 
                                 {/* Модификаторы */}
                                 <Box>
@@ -340,47 +529,26 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                                     {localCalcResult.modifiersApplied?.length > 0 ? (
                                         <Box sx={{ pl: 2 }}>
                                             {localCalcResult.modifiersApplied.map((m, i) => {
-                                                const appliedVal = typeof m.appliedValue === 'number' ? m.appliedValue : 0;
-                                                const typeLabel = m.modifierType === 'fixed_amount' ? 'фикс. сумма' :
-                                                    m.modifierType === 'percentage' ? 'процент' :
-                                                        m.modifierType === 'multiplier' ? 'множитель' : m.modifierType;
-
-                                                // Форматирование значения модификатора
-                                                let valueDisplay = '';
-                                                if (m.value !== undefined && m.value !== null) {
-                                                    if (m.modifierType === 'multiplier') {
-                                                        valueDisplay = `(*${m.value})`;
-                                                    } else if (m.modifierType === 'percentage') {
-                                                        valueDisplay = `(${m.value > 0 ? '+' : ''}${m.value}%)`;
-                                                    } else if (m.modifierType === 'fixed_amount') {
-                                                        valueDisplay = `(${m.value > 0 ? '+' : ''}${m.value})`;
-                                                    } else {
-                                                        valueDisplay = `(${m.value})`;
-                                                    }
-                                                }
-
-                                                // Найти имя свойства из localItem.properties или sectionProperties
                                                 const property = localItem.properties?.find(p => p.propertyId === m.propertyId)
                                                     || sectionProperties?.find(p => p.propertyId === m.propertyId);
-                                                const displayName = property
-                                                    ? `${property.propertyName}: ${m.propertyValue || property.value}`
-                                                    : m.propertyValue
-                                                        ? `ДС: ${m.propertyValue}`
-                                                        : m.name;
+
+                                                // Если есть связь со свойством, показываем "Имя: Значение"
+                                                // Иначе показываем название модификатора
+                                                let displayName = m.name;
+                                                if (property) {
+                                                    const valueText = m.propertyValue || property.value;
+                                                    displayName = `${property.propertyName}: ${valueText}`;
+                                                } else if (m.propertyValue) {
+                                                    displayName = `${m.name}: ${m.propertyValue}`;
+                                                }
+
+                                                const appliedVal = typeof m.appliedValue === 'number' ? m.appliedValue : 0;
 
                                                 return (
                                                     <Box key={i} sx={{ mb: 0.5, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 1 }}>
                                                         <Box sx={{ color: 'text.secondary', minWidth: 20 }}>{i + 1}.</Box>
                                                         <Box sx={{ flex: 1 }}>
-                                                            <Box component="span" sx={{ fontWeight: 500 }}>
-                                                                {displayName} {valueDisplay && <Box component="span" sx={{ color: 'primary.main', fontWeight: 600, ml: 0.5 }}>{valueDisplay}</Box>}
-                                                            </Box>
-                                                            <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.75rem', ml: 1 }}>({typeLabel})</Box>
-                                                            {m.propertyId && (
-                                                                <Box component="span" sx={{ fontSize: '0.65rem', ml: 1, color: 'warning.main' }}>
-                                                                    [ID:{m.propertyId} val:"{m.propertyValue}"]
-                                                                </Box>
-                                                            )}
+                                                            <Box component="span" sx={{ fontWeight: 500 }}>{displayName}</Box>
                                                         </Box>
                                                         <Box sx={{ fontWeight: 600, color: appliedVal >= 0 ? 'success.main' : 'error.main', minWidth: 100, textAlign: 'right' }}>
                                                             {appliedVal > 0 ? '+' : ''}{appliedVal.toFixed(2)} ₽
@@ -399,16 +567,14 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                                 {/* Итоговая цена */}
                                 <Box sx={{ pt: 1, borderTop: '2px solid', borderColor: 'divider' }}>
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                                            💵 Итоговая цена:
-                                        </Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 700 }}>💵 Итоговая цена:</Typography>
                                         <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main' }}>
                                             {(localCalcResult.finalPrice || 0).toFixed(2)} ₽
                                         </Typography>
                                     </Box>
                                 </Box>
 
-                                {/* JSON Debug (свернуто по умолчанию) */}
+                                {/* JSON Debug */}
                                 <Accordion disableGutters elevation={0} sx={{ border: '1px dashed #ccc', '&:before': { display: 'none' } }}>
                                     <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 'auto', py: 0.5 }}>
                                         <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>
@@ -419,7 +585,7 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                                         <Box sx={{ fontSize: '0.6rem', fontFamily: 'monospace', whiteSpace: 'pre-wrap', bgcolor: '#1e1e1e', color: '#d4d4d4', p: 1, borderRadius: 1, maxHeight: 300, overflow: 'auto' }}>
                                             {JSON.stringify({
                                                 calculation: localCalcResult,
-                                                composition: productComposition
+                                                nestedValues: nestedValues,
                                             }, null, 2)}
                                         </Box>
                                     </AccordionDetails>

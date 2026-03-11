@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
@@ -9,6 +9,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import type { NestedProductNode } from '../../../entities/product-component-schema/model/types';
 import type { OrderPropertyDto } from '@shared/api/order/types';
 import { DynamicPropertyForm } from './DynamicPropertyForm';
+import { evaluateCondition } from '@shared/lib/formula';
 
 /**
  * Пропсы компонента вкладок вложенных свойств
@@ -16,8 +17,8 @@ import { DynamicPropertyForm } from './DynamicPropertyForm';
 interface NestedPropertyTabsProps {
     /** Дерево вложенных компонентов */
     nestedNodes: NestedProductNode[];
-    /** ID шапки свойств */
-    headerId: number;
+    /** Свойства родительского компонента для вычисления условий отображения */
+    parentProperties?: OrderPropertyDto[];
     /** Текущие значения вложенных свойств: ключ — productId */
     nestedValues: Record<number, OrderPropertyDto[]>;
     /** Обработчик изменения значений вложенных свойств */
@@ -34,12 +35,24 @@ interface NestedPropertyTabsProps {
  */
 export const NestedPropertyTabs = ({
     nestedNodes,
-    headerId,
+    parentProperties = [],
     nestedValues,
     onNestedChange,
     isLoading = false,
 }: NestedPropertyTabsProps) => {
     const [activeTab, setActiveTab] = useState(0);
+
+    // Вычисляем видимые узлы на основе свойства conditionFormula и parentProperties
+    const visibleNodes = nestedNodes.filter(node =>
+        evaluateCondition(node.conditionFormula, parentProperties)
+    );
+
+    // Сброс вкладки, если видимых узлов стало меньше, чем текущий индекс вкладки
+    useEffect(() => {
+        if (visibleNodes.length > 0 && activeTab >= visibleNodes.length) {
+            setActiveTab(0);
+        }
+    }, [visibleNodes.length, activeTab]);
 
     if (isLoading) {
         return (
@@ -52,11 +65,11 @@ export const NestedPropertyTabs = ({
         );
     }
 
-    if (nestedNodes.length === 0) {
+    if (visibleNodes.length === 0) {
         return null;
     }
 
-    const currentNode = nestedNodes[activeTab];
+    const currentNode = visibleNodes[activeTab];
     if (!currentNode) return null;
 
     const currentValues = nestedValues[currentNode.productId] ?? [];
@@ -69,7 +82,7 @@ export const NestedPropertyTabs = ({
                     Вложенные компоненты
                 </Typography>
                 <Chip
-                    label={nestedNodes.length}
+                    label={visibleNodes.length}
                     size="small"
                     variant="outlined"
                     color="info"
@@ -100,7 +113,7 @@ export const NestedPropertyTabs = ({
                         },
                     }}
                 >
-                    {nestedNodes.map((node) => (
+                    {visibleNodes.map((node) => (
                         <Tab
                             key={node.productId}
                             label={
@@ -131,7 +144,7 @@ export const NestedPropertyTabs = ({
                     {/* Форма свойств дочернего компонента */}
                     {currentNode.properties.length > 0 ? (
                         <DynamicPropertyForm
-                            headerId={headerId}
+                            filterByPropertyIds={currentNode.properties.map(p => p.propertyId)}
                             productId={currentNode.productId}
                             values={currentValues}
                             onChange={(newValues) => onNestedChange(currentNode.productId, newValues)}
@@ -146,7 +159,7 @@ export const NestedPropertyTabs = ({
                     {currentNode.children.length > 0 && (
                         <NestedPropertyTabs
                             nestedNodes={currentNode.children}
-                            headerId={headerId}
+                            parentProperties={currentValues}
                             nestedValues={nestedValues}
                             onNestedChange={onNestedChange}
                         />

@@ -53,7 +53,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
 
     useEffect(() => {
         if (headerId) {
-            propertyHeadersApi.getProducts(headerId)
+            propertyHeadersApi.getProducts(headerId, { includeInactive: true })
                 .then(data => setProducts(data))
                 .catch(err => console.error('Error fetching products:', err));
         }
@@ -214,8 +214,10 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
     } : null;
 
     const currentProductName = currentEditItem
-        ? products.find(p => p.id === currentEditItem.productId)?.name
+        ? (products.find(p => p.id === currentEditItem.productId)?.name || `Товар #${currentEditItem.productId}`)
         : '';
+
+    const isProductIdInList = (id: number | string) => products.some(p => p.id === Number(id));
 
     // --- Save & Conflict Logic ---
 
@@ -300,10 +302,14 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                 value={item.productId}
                                 onChange={(e) => handleUpdateRow(idx, 'productId', Number(e.target.value))}
                             >
-                                <MenuItem value={0} disabled>Выберите товар</MenuItem>
-                                {products.filter(p => p.name && !p.name.includes('#')).map(p => (
+                                {products.filter(p => (p.isActive || item.productId === p.id) && p.name && !p.name.includes('#')).map(p => (
                                     <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                                 ))}
+                                {item.productId !== 0 && !isProductIdInList(item.productId) && (
+                                    <MenuItem value={item.productId} disabled>
+                                        ID: {item.productId} (Не найден)
+                                    </MenuItem>
+                                )}
                             </TextField>
 
                             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1 }}>
@@ -401,7 +407,12 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                         </TableHead>
                         <TableBody>
                             {items.map((item, idx) => (
-                                <TableRow key={idx}>
+                                <TableRow
+                                    key={idx}
+                                    hover
+                                    onClick={() => handleOpenDetails(idx)}
+                                    sx={{ cursor: 'pointer' }}
+                                >
                                     <TableCell align="center" sx={{ p: 0.5, color: 'text.secondary', width: 40 }}>
                                         {idx + 1}
                                     </TableCell>
@@ -411,6 +422,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                             fullWidth
                                             size="small"
                                             value={item.productId}
+                                            onClick={(e) => e.stopPropagation()}
                                             onChange={(e) => handleUpdateRow(idx, 'productId', Number(e.target.value))}
                                             sx={{
                                                 '& .MuiOutlinedInput-input': {
@@ -420,9 +432,14 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                             }}
                                         >
                                             <MenuItem value={0} disabled>Выберите товар</MenuItem>
-                                            {products.filter(p => p.name && !p.name.includes('#')).map(p => (
+                                            {products.filter(p => (p.isActive || item.productId === p.id) && p.name && !p.name.includes('#')).map(p => (
                                                 <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                                             ))}
+                                            {item.productId !== 0 && !isProductIdInList(item.productId) && (
+                                                <MenuItem value={item.productId} disabled>
+                                                    ID: {item.productId} (Не найден)
+                                                </MenuItem>
+                                            )}
                                         </TextField>
                                     </TableCell>
                                     <TableCell sx={{ p: 0.5 }}>
@@ -431,6 +448,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                             type="number"
                                             fullWidth
                                             value={item.length || ''}
+                                            onClick={(e) => e.stopPropagation()}
                                             onChange={(e) => handleUpdateRow(idx, 'length', Number(e.target.value))}
                                             placeholder="0"
                                             inputProps={{ sx: { px: 1, py: 0.75, textAlign: 'center' } }}
@@ -442,6 +460,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                             type="number"
                                             fullWidth
                                             value={item.width || ''}
+                                            onClick={(e) => e.stopPropagation()}
                                             onChange={(e) => handleUpdateRow(idx, 'width', Number(e.target.value))}
                                             placeholder="0"
                                             inputProps={{ sx: { px: 1, py: 0.75, textAlign: 'center' } }}
@@ -453,6 +472,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                             type="number"
                                             fullWidth
                                             value={item.depth || ''}
+                                            onClick={(e) => e.stopPropagation()}
                                             onChange={(e) => handleUpdateRow(idx, 'depth', Number(e.target.value))}
                                             placeholder="0"
                                             inputProps={{ sx: { px: 1, py: 0.75, textAlign: 'center' } }}
@@ -464,6 +484,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                             type="number"
                                             fullWidth
                                             value={item.quantity}
+                                            onClick={(e) => e.stopPropagation()}
                                             onChange={(e) => handleUpdateRow(idx, 'quantity', Number(e.target.value))}
                                             inputProps={{ sx: { px: 1, py: 0.75, textAlign: 'center' } }}
                                         />
@@ -474,6 +495,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                             size="small"
                                             fullWidth
                                             value={item.note || ''}
+                                            onClick={(e) => e.stopPropagation()}
                                             onChange={(e) => handleUpdateRow(idx, 'note', e.target.value)}
                                             placeholder="..."
                                         />
@@ -486,6 +508,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                                     type="number"
                                                     fullWidth
                                                     value={item.basePrice || ''}
+                                                    onClick={(e) => e.stopPropagation()}
                                                     onChange={(e) => handleUpdateRow(idx, 'basePrice', Number(e.target.value))}
                                                     placeholder="0.00"
                                                 />
@@ -496,6 +519,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                                     type="number"
                                                     fullWidth
                                                     value={item.finalPrice || ''}
+                                                    onClick={(e) => e.stopPropagation()}
                                                     onChange={(e) => handleUpdateRow(idx, 'finalPrice', Number(e.target.value))}
                                                     placeholder="0.00"
                                                 />
@@ -503,12 +527,12 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
                                         </>
                                     )}
                                     <TableCell sx={{ p: 0.5 }}>
-                                        <Button size="small" variant="outlined" sx={{ minWidth: 'auto', p: 0.5 }} onClick={() => handleOpenDetails(idx)}>
+                                        <Button size="small" variant="outlined" sx={{ minWidth: 'auto', p: 0.5 }} onClick={(e) => { e.stopPropagation(); handleOpenDetails(idx); }}>
                                             Инфо
                                         </Button>
                                     </TableCell>
                                     <TableCell sx={{ p: 0.5 }}>
-                                        <IconButton size="small" onClick={() => handleRemoveRow(idx)}>
+                                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleRemoveRow(idx); }}>
                                             <DeleteIcon fontSize="small" />
                                         </IconButton>
                                     </TableCell>

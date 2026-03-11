@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
@@ -27,6 +27,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import MenuIcon from '@mui/icons-material/Menu';
 
 import { useThemeStore } from '@shared/model';
 import { config } from '@shared/config';
@@ -56,6 +57,8 @@ interface HeaderProps {
   workOrdersCount?: number;
   /** Сохранить как новый (Клонировать) */
   onSaveAsNew?: () => void;
+  /** Коллбэк для открытия/закрытия Sidebar на мобильных */
+  onToggleSidebar?: () => void;
 }
 
 /**
@@ -73,23 +76,29 @@ export const Header = ({
   onNavigateWorkOrders,
   workOrdersCount,
   onSaveAsNew,
+  onToggleSidebar,
 }: HeaderProps) => {
   const { mode, toggleTheme } = useThemeStore();
 
   // Split Button State
   const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement>(null);
+  const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
 
-  const handleToggle = () => {
+  const handleToggle = (event: React.MouseEvent<HTMLButtonElement>) => {
+    // We attach the anchor to the ButtonGroup's parent conceptually, or the button itself.
+    // For Split button, the anchor is usually the ButtonGroup.
+    // Finding the nearest button group.
+    setAnchorEl(event.currentTarget.closest('.MuiButtonGroup-root') as HTMLDivElement || event.currentTarget);
     setOpen((prevOpen) => !prevOpen);
   };
 
   const handleClose = (event: Event) => {
-    if (anchorRef.current && anchorRef.current.contains(event.target as HTMLElement)) {
+    if (anchorEl && anchorEl.contains(event.target as HTMLElement)) {
       return;
     }
     setOpen(false);
   };
+
 
   const handleSaveAsNewClick = () => {
     if (onSaveAsNew) {
@@ -113,7 +122,18 @@ export const Header = ({
     >
       <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 1, sm: 2 } }}>
         {/* Left: Logo & Title */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 2 } }}>
+          {onToggleSidebar && (
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={onToggleSidebar}
+              sx={{ display: { md: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
           <Box
             sx={{
               width: 34,
@@ -222,9 +242,9 @@ export const Header = ({
               onClick={onGenerateWorkOrder}
               disabled={isGeneratingWO}
               size="small"
-              sx={{ borderRadius: '8px', height: 36 }}
+              sx={{ borderRadius: '8px', height: 36, minWidth: { xs: 36, sm: 'auto' }, px: { xs: 1, sm: 2 } }}
             >
-              Создать ЗН
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Создать ЗН</Box>
             </Button>
           )}
 
@@ -238,19 +258,19 @@ export const Header = ({
               sx={{
                 borderRadius: '8px',
                 height: 36,
-                display: { xs: 'none', lg: 'flex' },
-                color: mode === 'dark' ? '#94a3b8' : '#64748b'
+                display: 'flex',
+                color: mode === 'dark' ? '#94a3b8' : '#64748b',
+                minWidth: { xs: 36, sm: 'auto' },
+                px: { xs: 1, sm: 2 }
               }}
             >
-              Секция
+              <Box component="span" sx={{ display: { xs: 'none', lg: 'inline' } }}>Секция</Box>
             </Button>
           )}
-
           {/* Save & More (Split Button) */}
           {onSave && (
             <ButtonGroup
               variant="contained"
-              ref={anchorRef}
               aria-label="split button"
               size="small"
               sx={{
@@ -266,12 +286,13 @@ export const Header = ({
                 onClick={onSave}
                 disabled={isSaving}
                 startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
-                sx={{ px: 2, fontWeight: 600 }}
+                sx={{ px: { xs: 1, sm: 2 }, minWidth: { xs: 36, sm: 'auto' }, fontWeight: 600 }}
               >
-                {isSaving ? 'Сохранение...' : 'Сохранить'}
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                  {isSaving ? 'Сохранение...' : 'Сохранить'}
+                </Box>
               </Button>
-              <Button
-                size="small"
+              <Button size="small"
                 aria-controls={open ? 'split-button-menu' : undefined}
                 aria-expanded={open ? 'true' : undefined}
                 aria-label="select merge strategy"
@@ -286,7 +307,7 @@ export const Header = ({
           <Popper
             sx={{ zIndex: 1 }}
             open={open}
-            anchorEl={anchorRef.current}
+            anchorEl={anchorEl}
             role={undefined}
             transition
             disablePortal

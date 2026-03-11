@@ -75,11 +75,11 @@ export const PropertiesManagementPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4">Управление дополнительными свойствами</Typography>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+    <Box sx={{ p: { xs: 0, sm: 1, md: 3 } }}>
+      <Paper sx={{ p: { xs: 1, sm: 2, md: 3 }, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
+          <Typography variant="h5">Управление дополнительными свойствами</Typography>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             <FormControlLabel
               control={
                 <Switch
@@ -93,6 +93,7 @@ export const PropertiesManagementPage: React.FC = () => {
             <Button
               variant="contained"
               color="primary"
+              size="small"
               onClick={() => setShowForm(true)}
             >
               Добавить свойство

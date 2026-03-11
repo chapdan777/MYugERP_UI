@@ -25,4 +25,5 @@ export interface PriceCalculationResult {
     modifiersApplied: any[];
     subtotal: number;
     finalPrice: number;
+    components?: any[];
 }

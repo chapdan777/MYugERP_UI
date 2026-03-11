@@ -114,7 +114,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
 
   return (
     <Box>
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table sx={{ minWidth: 650 }} aria-label="таблица номенклатуры">
           <TableHead>
             <TableRow>
@@ -140,7 +140,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
               paginatedProducts.map((product) => (
                 <TableRow
                   key={product.id}
-                  sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                  hover
+                  onClick={() => onView?.(product)}
+                  sx={{
+                    cursor: 'pointer',
+                    '&:last-child td, &:last-child th': { border: 0 }
+                  }}
                 >
                   <TableCell component="th" scope="row">
                     <Box>
@@ -199,7 +204,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                         <Tooltip title="Просмотр">
                           <IconButton
                             size="small"
-                            onClick={() => onView(product)}
+                            onClick={(e) => { e.stopPropagation(); onView(product); }}
                           >
                             <VisibilityIcon fontSize="small" />
                           </IconButton>
@@ -210,7 +215,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                         <Tooltip title="Редактировать">
                           <IconButton
                             size="small"
-                            onClick={() => onEdit(product)}
+                            onClick={(e) => { e.stopPropagation(); onEdit(product); }}
                           >
                             <EditIcon fontSize="small" />
                           </IconButton>
@@ -221,7 +226,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                         <Tooltip title="Удалить">
                           <IconButton
                             size="small"
-                            onClick={() => onDelete(product.id)}
+                            onClick={(e) => { e.stopPropagation(); onDelete(product.id); }}
                             color="error"
                           >
                             <DeleteIcon fontSize="small" />
@@ -232,7 +237,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                       <Tooltip title="Копировать">
                         <IconButton
                           size="small"
-                          onClick={() => handleClone(product.id)}
+                          onClick={(e) => { e.stopPropagation(); handleClone(product.id); }}
                           disabled={isCloning !== null}
                           color="primary"
                         >

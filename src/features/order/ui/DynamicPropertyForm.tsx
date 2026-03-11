@@ -15,18 +15,23 @@ import { propertyApi } from '@shared/api/property';
 import type { Property, PropertyDependency } from '@shared/api/property/types';
 
 interface DynamicPropertyFormProps {
-    headerId: number;
+    headerId?: number;
     productId?: number;
     values: OrderPropertyDto[];
     onChange: (values: OrderPropertyDto[]) => void;
     productProperties?: any[]; // Свойства из номенклатуры для доп. сортировки
+    filterByPropertyIds?: number[]; // Явный список ID свойств для отображения (если не используется headerId)
 }
 
-export const DynamicPropertyForm = ({ headerId, values, onChange, productProperties = [] }: DynamicPropertyFormProps) => {
+export const DynamicPropertyForm = ({ headerId, values, onChange, productProperties = [], filterByPropertyIds }: DynamicPropertyFormProps) => {
     const [loading, setLoading] = useState(true);
     const [properties, setProperties] = useState<Property[]>([]);
     const [dependencies, setDependencies] = useState<PropertyDependency[]>([]);
     const [refreshKey, setRefreshKey] = useState(0);
+
+    // Ref для полного списка свойств — нужен чтобы зависимости (sets_value)
+    // могли найти целевое свойство, даже если оно не отображается в текущей форме
+    const allPropsRef = useRef<Property[]>([]);
 
     // Ref для отслеживания актуальных значений и предотвращения race condition
     // Когда пользователь быстро меняет несколько свойств, без ref каждый handleChange
@@ -39,24 +44,36 @@ export const DynamicPropertyForm = ({ headerId, values, onChange, productPropert
     const loadPropertiesAndDependencies = useCallback(async () => {
         setLoading(true);
         try {
-            // 1. Получаем элементы (связи) для этой шапки
-            const items = await propertyHeadersApi.getItems(headerId);
+            // 1. Получаем элементы (связи)
+            let headerItems: any[] = [];
+            let headerPropIds = new Set<number>();
+
+            if (headerId) {
+                headerItems = await propertyHeadersApi.getItems(headerId);
+                headerPropIds = new Set(headerItems.map((i) => i.propertyId));
+            } else if (filterByPropertyIds) {
+                headerPropIds = new Set(filterByPropertyIds);
+            }
 
             // 2. Получаем все свойства
             const allProps = await propertyApi.getProperties();
+            allPropsRef.current = allProps;
 
-            // 3. Фильтруем свойства, которые есть в шапке или уже выбраны для позиции
-            const headerPropIds = new Set(items.map((i) => i.propertyId));
+            // 3. Фильтруем свойства, которые разрешены для отображения (по шапке или по фильтру)
             const valuePropIds = new Set(valuesRef.current.map(v => v.propertyId));
-            const filteredProps = allProps.filter((p: Property) => headerPropIds.has(p.id) || valuePropIds.has(p.id));
+
+            const filteredProps = allProps.filter((p: Property) =>
+                headerPropIds.has(p.id) ||
+                (headerId ? valuePropIds.has(p.id) : false) // добавляем выбранные свойства только если это шапка (чтобы не тянуть родительские свойства во вложенные формы)
+            );
 
             // 4. Сортируем: 
             // - Сначала те, что есть в шапке (по sortOrder)
             // - Затем те, что есть в номенклатуре (по displayOrder)
             // - Затем остальные (по ID)
             const sortedProps = filteredProps.sort((a: Property, b: Property) => {
-                const itemA = items.find(i => i.propertyId === a.id);
-                const itemB = items.find(i => i.propertyId === b.id);
+                const itemA = headerItems.find(i => i.propertyId === a.id);
+                const itemB = headerItems.find(i => i.propertyId === b.id);
 
                 if (itemA || itemB) {
                     // Если хотя бы одно в шапке
@@ -94,33 +111,23 @@ export const DynamicPropertyForm = ({ headerId, values, onChange, productPropert
                 }
             }));
             setDependencies(allDeps);
-            console.log('Loaded Property Dependencies:', allDeps);
+            console.log(`Loaded ${allDeps.length} Property Dependencies for `, sortedProps.map(p => p.name));
 
         } catch (error) {
             console.error('Failed to load properties for header', error);
         } finally {
             setLoading(false);
         }
-    }, [headerId, refreshKey]);
+    }, [headerId, filterByPropertyIds, refreshKey]);
 
     useEffect(() => {
-        if (headerId) {
+        if (headerId || filterByPropertyIds) {
             loadPropertiesAndDependencies();
         }
-    }, [headerId, refreshKey, loadPropertiesAndDependencies]);
+    }, [headerId, filterByPropertyIds, refreshKey, loadPropertiesAndDependencies]);
 
-    // Если снаружи добавили новое свойство (например, через модальное окно деталей позиции),
-    // нам нужно перезагрузить или перефильтровать список. Проверяем, появились ли новые propertyId:
-    useEffect(() => {
-        if (properties.length > 0 && values.length > 0) {
-            const currentPropIds = new Set(properties.map(p => p.id));
-            const hasNewProperty = values.some(v => !currentPropIds.has(v.propertyId));
-            if (hasNewProperty) {
-                console.log("New property detected in values, reloading properties...");
-                loadPropertiesAndDependencies();
-            }
-        }
-    }, [values, properties, loadPropertiesAndDependencies]);
+    // Снято: цикл обновлений properties -> useEffect -> load -> properties вызывал мерцание
+    // Если нужно обновить список при изменении значений снаружи, лучше использовать refreshKey или явный триггер
 
     const handleRefresh = () => {
         setRefreshKey(prev => prev + 1);
@@ -136,7 +143,8 @@ export const DynamicPropertyForm = ({ headerId, values, onChange, productPropert
             propertyId: property.id,
             propertyName: property.name,
             propertyCode: property.code,
-            value: value
+            value: value,
+            variableName: property.variableName,
         };
 
         if (index >= 0) {
@@ -147,35 +155,44 @@ export const DynamicPropertyForm = ({ headerId, values, onChange, productPropert
 
         // --- Логика динамических зависимостей ---
         // Находим зависимости, где это свойство является ИСТОЧНИКОМ
+        console.log(`[Dependencies] handleChange: property=${property.name}(id=${property.id}), value="${value}", total deps loaded: ${dependencies.length}`);
+
         const relevantDeps = dependencies.filter(d =>
             d.sourcePropertyId === property.id &&
             d.dependencyType === 'sets_value' && // DependencyType.SETS_VALUE
             d.isActive
         );
 
+        console.log(`[Dependencies] Found ${relevantDeps.length} relevant sets_value deps for property ${property.name}`, relevantDeps);
+
         relevantDeps.forEach(dep => {
             // Проверяем, выполнено ли условие
             // Если dep.sourceValue = null, применяется для ЛЮБОГО значения (всегда срабатывает)
             // Если dep.sourceValue установлен, должно совпадать с текущим значением
             const isTriggered = !dep.sourceValue || dep.sourceValue === value;
+            console.log(`[Dependencies] Checking dep id=${dep.id}: sourceValue="${dep.sourceValue}" vs value="${value}", triggered=${isTriggered}`);
 
             if (isTriggered && dep.targetValue) {
                 // Находим целевое свойство в списке допустимых свойств для этой шапки
-                const targetProp = properties.find(p => p.id === dep.targetPropertyId);
+                // Ищем целевое свойство сначала в видимой форме, затем в полном справочнике (fallback)
+                const targetProp = properties.find(p => p.id === dep.targetPropertyId)
+                    || allPropsRef.current.find(p => p.id === dep.targetPropertyId);
+                console.log(`[Dependencies] Target prop id=${dep.targetPropertyId} found: ${!!targetProp}`);
 
                 if (targetProp) {
                     const targetIndex = newValues.findIndex(v => v.propertyId === targetProp.id);
-                    const targetOrderProp: OrderPropertyDto = {
+                    const targetNewValue: OrderPropertyDto = {
                         propertyId: targetProp.id,
                         propertyName: targetProp.name,
                         propertyCode: targetProp.code,
-                        value: dep.targetValue
+                        value: dep.targetValue,
+                        variableName: targetProp.variableName,
                     };
 
                     if (targetIndex >= 0) {
-                        newValues[targetIndex] = targetOrderProp;
+                        newValues[targetIndex] = targetNewValue;
                     } else {
-                        newValues.push(targetOrderProp);
+                        newValues.push(targetNewValue);
                     }
                     console.log(`Dependency applied: ${property.name} (${value}) -> Set ${targetProp.name} to ${dep.targetValue}`);
                 }
@@ -192,6 +209,29 @@ export const DynamicPropertyForm = ({ headerId, values, onChange, productPropert
     // всегда показывал актуальное значение даже если props ещё не обновились
     const getValue = (propId: number) => {
         return valuesRef.current.find(v => v.propertyId === propId)?.value || '';
+    };
+
+    /**
+     * Преобразует возможные значения из строки (JSON или запятые) в массив
+     */
+    const getOptions = (prop: Property): string[] => {
+        const values: any = prop.possibleValues;
+        if (!values) return [];
+
+        if (Array.isArray(values)) return values;
+
+        if (typeof values === 'string') {
+            try {
+                // 1. Пытаемся распарсить как JSON
+                const parsed = JSON.parse(values);
+                if (Array.isArray(parsed)) return parsed as string[];
+            } catch {
+                // 2. Если не JSON — пробуем запятые
+                return values.split(',').map((v: string) => v.trim()).filter(Boolean);
+            }
+        }
+
+        return [];
     };
 
     if (loading) return <CircularProgress size={20} />;
@@ -238,7 +278,7 @@ export const DynamicPropertyForm = ({ headerId, values, onChange, productPropert
                                     sx={{ m: 0 }}
                                 />
                             </Box>
-                        ) : prop.type === 'select' || prop.dataType === 'select' ? (
+                        ) : prop.dataType === 'select' || prop.dataType === 'list' || prop.dataType === 'multi_select' ? (
                             <TextField
                                 select
                                 fullWidth
@@ -251,11 +291,16 @@ export const DynamicPropertyForm = ({ headerId, values, onChange, productPropert
                                     }
                                 }}
                             >
-                                {prop.possibleValues?.map((val) => (
+                                {getOptions(prop).map((val) => (
                                     <MenuItem key={val} value={val}>
                                         {val}
                                     </MenuItem>
                                 ))}
+                                {getOptions(prop).length === 0 && (
+                                    <MenuItem disabled value="">
+                                        <em>Список пуст</em>
+                                    </MenuItem>
+                                )}
                             </TextField>
                         ) : (
                             <TextField
