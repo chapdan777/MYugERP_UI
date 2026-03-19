@@ -156,7 +156,7 @@ export const OrderItemsTable = ({ headerId, items, onChange, sectionProperties }
 
     const handleUpdateRow = (index: number, field: keyof CreateOrderItemDto, value: string | number) => {
         const newItems = [...items];
-        let updatedItem = { ...newItems[index], [field]: value };
+        const updatedItem = { ...newItems[index], [field]: value };
 
         // Apply default dimensions if a new product is selected
         if (field === 'productId') {

@@ -312,6 +312,7 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
             };
 
             const result = await pricingApi.calculatePrice(requestPayload);
+            console.log('[ItemDetailsModal] Calculation result:', result);
             setLocalCalcResult(result);
         } catch (error: any) {
             console.error('Failed to calculate price:', error);
@@ -438,14 +439,54 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                 )}
 
                 {localCalcResult && (
-                    <Accordion disableGutters elevation={0} sx={{ border: '1px solid #eee', '&:before': { display: 'none' } }}>
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                📊 Детали расчета цены
-                            </Typography>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {/* Состав изделия (BOM) - ВЫНЕСЛИ ИЗ АККОРДЕОНА ДЛЯ ВИДИМОСТИ */}
+                        {localCalcResult.components && localCalcResult.components.length > 0 ? (
+                            <Box sx={{ p: 2, border: '1px solid', borderColor: 'info.light', borderRadius: 1, bgcolor: 'rgba(2, 136, 209, 0.03)' }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: 'info.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    🧱 Состав изделия (Деталировка)
+                                </Typography>
+                                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden', bgcolor: 'background.paper' }}>
+                                    <Table size="small">
+                                        <TableHead sx={{ bgcolor: 'action.hover' }}>
+                                            <TableRow>
+                                                <TableCell sx={{ fontWeight: 600, py: 0.5 }}>Деталь</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>L (мм)</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>W (мм)</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>T (мм)</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>Кол-во</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {localCalcResult.components.map((comp: any, i: number) => (
+                                                <TableRow key={i} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                                    <TableCell sx={{ py: 0.5 }}>{comp.name}</TableCell>
+                                                    <TableCell align="right" sx={{ py: 0.5 }}>{comp.length}</TableCell>
+                                                    <TableCell align="right" sx={{ py: 0.5 }}>{comp.width}</TableCell>
+                                                    <TableCell align="right" sx={{ py: 0.5 }}>{comp.depth || 0}</TableCell>
+                                                    <TableCell align="right" sx={{ py: 0.5 }}>{comp.quantity}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </Box>
+                            </Box>
+                        ) : (
+                            <Box sx={{ p: 1.5, border: '1px dashed', borderColor: 'warning.main', borderRadius: 1, bgcolor: 'rgba(255, 152, 0, 0.05)' }}>
+                                <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>
+                                    ⚠️ Деталировка пуста. Проверьте технологические схемы для этой номенклатуры.
+                                </Typography>
+                            </Box>
+                        )}
+
+                        <Accordion disableGutters elevation={0} sx={{ border: '1px solid #eee', '&:before': { display: 'none' } }}>
+                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    📊 Детали расчета цены
+                                </Typography>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 {/* Основные показатели */}
                                 <Box>
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -488,38 +529,6 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                                     </Box>
                                 </Box>
 
-                                {/* Состав изделия (BOM) */}
-                                {localCalcResult.components && localCalcResult.components.length > 0 && (
-                                    <Box>
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'info.main' }}>
-                                            🧱 Состав изделия (Деталировка)
-                                        </Typography>
-                                        <Box sx={{ pl: 0, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                                            <Table size="small">
-                                                <TableHead sx={{ bgcolor: 'action.hover' }}>
-                                                    <TableRow>
-                                                        <TableCell sx={{ fontWeight: 600, py: 0.5 }}>Деталь</TableCell>
-                                                        <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>L (мм)</TableCell>
-                                                        <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>W (мм)</TableCell>
-                                                        <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>T (мм)</TableCell>
-                                                        <TableCell align="right" sx={{ fontWeight: 600, py: 0.5 }}>Кол-во</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {localCalcResult.components.map((comp: any, i: number) => (
-                                                        <TableRow key={i} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                                            <TableCell sx={{ py: 0.5 }}>{comp.name}</TableCell>
-                                                            <TableCell align="right" sx={{ py: 0.5 }}>{comp.length}</TableCell>
-                                                            <TableCell align="right" sx={{ py: 0.5 }}>{comp.width}</TableCell>
-                                                            <TableCell align="right" sx={{ py: 0.5 }}>{comp.depth || 0}</TableCell>
-                                                            <TableCell align="right" sx={{ py: 0.5 }}>{comp.quantity}</TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </Box>
-                                    </Box>
-                                )}
 
                                 {/* Модификаторы */}
                                 <Box>
@@ -593,7 +602,8 @@ export const ItemDetailsModal = ({ open, onClose, item, headerId, onSave, itemNa
                             </Box>
                         </AccordionDetails>
                     </Accordion>
-                )}
+                </Box>
+            )}
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Закрыть</Button>

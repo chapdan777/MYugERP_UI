@@ -432,14 +432,22 @@ const darkThemeOptions: ThemeOptions = {
     MuiChip: {
       styleOverrides: {
         root: {
-          borderColor: 'rgba(148, 163, 184, 0.3)',
+          borderRadius: 6,
+          fontWeight: 500,
+          '&.MuiChip-outlined': {
+            backgroundColor: 'rgba(255, 255, 255, 0.04)',
+          },
         },
         filled: {
           color: '#f1f5f9',
         },
         outlined: {
-          color: '#cbd5e1',
-          borderColor: 'rgba(148, 163, 184, 0.3)',
+           // We remove global color/borderColor here to let color="warning" etc. work correctly
+           borderWidth: '1px',
+           '&.MuiChip-colorDefault': {
+             color: '#cbd5e1',
+             borderColor: 'rgba(148, 163, 184, 0.3)',
+           }
         },
         deleteIcon: {
           color: '#94a3b8',

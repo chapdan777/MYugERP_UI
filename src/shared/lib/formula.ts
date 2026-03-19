@@ -60,7 +60,7 @@ export function evaluateCondition(formula: string | null | undefined, properties
 
         // Создаем функцию, которая принимает context и извлекает из него переменные через with
         // NOTE: with запрещен в строгом режиме, но в new Function он работает в своем контексте
-        // eslint-disable-next-line @typescript-eslint/no-implied-eval
+         
         const fn = new Function('ctx', `with(ctx) { try { return !!(${preparedFormula}); } catch(e) { return false; } }`);
 
         return fn(context);

@@ -31,6 +31,15 @@ import {
 } from '../../../features/manage-operations';
 import type { Operation, CreateOperationDto, UpdateOperationDto } from '../../../features/manage-operations';
 import {
+  RouteTemplatesTable,
+  RouteTemplateForm,
+  useRouteTemplates,
+  useCreateRouteTemplate,
+  useUpdateRouteTemplate,
+  useDeleteRouteTemplate,
+} from '../../../features/manage-route-templates';
+import type { RouteTemplate, CreateRouteTemplateInput } from '../../../features/manage-route-templates';
+import {
   StatusesTable,
   StatusForm,
   useWorkOrderStatuses,
@@ -139,6 +148,8 @@ const DataManagementPage: React.FC = () => {
   const [showStatusForm, setShowStatusForm] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<ProductionDepartment | null>(null);
   const [showDepartmentForm, setShowDepartmentForm] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<RouteTemplate | null>(null);
+  const [showTemplateForm, setShowTemplateForm] = useState(false);
 
   const { deactivateProduct } = useDeactivateProduct();
 
@@ -158,6 +169,12 @@ const DataManagementPage: React.FC = () => {
   const { createDepartment } = useCreateDepartment();
   const { updateDepartment } = useUpdateDepartment();
 
+  // Хуки для шаблонов маршрутов
+  const { templates, isLoading: isLoadingTemplates } = useRouteTemplates();
+  const { createTemplate } = useCreateRouteTemplate();
+  const { updateTemplate } = useUpdateRouteTemplate();
+  const { deleteTemplate } = useDeleteRouteTemplate();
+
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
     // Сбрасываем состояние формы при смене вкладки
@@ -166,6 +183,7 @@ const DataManagementPage: React.FC = () => {
     setShowOperationForm(false);
     setShowStatusForm(false);
     setShowDepartmentForm(false);
+    setShowTemplateForm(false);
   };
 
   const handleEditUser = (user: User) => {
@@ -348,6 +366,7 @@ const DataManagementPage: React.FC = () => {
               <Tab label="Операции" {...a11yProps(5)} />
               <Tab label="Статусы ЗН" {...a11yProps(6)} />
               <Tab label="Участки" {...a11yProps(7)} />
+              <Tab label="Шаблоны маршрутов" {...a11yProps(8)} />
             </Tabs>
           </Box>
 
@@ -535,6 +554,37 @@ const DataManagementPage: React.FC = () => {
               />
             </Box>
           </TabPanel>
+
+          {/* Вкладка Шаблоны маршрутов */}
+          <TabPanel value={activeTab} index={8}>
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                <Typography variant="h6">
+                  Шаблоны технологических маршрутов
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => { setEditingTemplate(null); setShowTemplateForm(true); }}
+                >
+                  Создать шаблон
+                </Button>
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Переиспользуемые маршруты, которые можно привязать к нескольким номенклатурам
+              </Typography>
+              <RouteTemplatesTable
+                templates={templates}
+                isLoading={isLoadingTemplates}
+                onEdit={(template: RouteTemplate) => { setEditingTemplate(template); setShowTemplateForm(true); }}
+                onDelete={async (id: number) => {
+                  if (window.confirm('Удалить шаблон маршрута?')) {
+                    await deleteTemplate(id);
+                  }
+                }}
+              />
+            </Box>
+          </TabPanel>
         </Paper>
       </StyledContainer>
 
@@ -560,6 +610,22 @@ const DataManagementPage: React.FC = () => {
         department={editingDepartment}
         onSave={handleSaveDepartment}
         onClose={handleCloseDepartmentForm}
+      />
+
+      {/* Модальная форма для шаблонов маршрутов */}
+      <RouteTemplateForm
+        open={showTemplateForm}
+        template={editingTemplate}
+        onSave={async (input: CreateRouteTemplateInput) => {
+          if (editingTemplate?.id) {
+            await updateTemplate(editingTemplate.id, input);
+          } else {
+            await createTemplate(input);
+          }
+          setShowTemplateForm(false);
+          setEditingTemplate(null);
+        }}
+        onClose={() => { setEditingTemplate(null); setShowTemplateForm(false); }}
       />
     </MainLayout>
   );

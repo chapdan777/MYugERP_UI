@@ -30,8 +30,12 @@ import {
 import {
   Delete as DeleteIcon,
   ArrowUpward as UpIcon,
-  ArrowDownward as DownIcon
+  ArrowDownward as DownIcon,
+  ContentCopy as CopyIcon
 } from '@mui/icons-material';
+import { useRouteTemplates } from '../../manage-route-templates';
+import { useTechnologicalRoute } from '../model/technological-route.hooks';
+import type { CreateTechnologicalRouteInput } from '../model/types';
 import type { Product, CreateProductInput } from '../model/types';
 import { useCreateProduct, useUpdateProduct, useSetProductProperties, useGetProductProperties } from '../model/product.hooks';
 import { useProperties } from '../../manage-properties/model/property.hooks';
@@ -81,6 +85,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const { setProductProperties } = useSetProductProperties();
   const { getProductProperties } = useGetProductProperties();
   const { properties, isLoading: propertiesLoading, isError, error } = useProperties();
+  const { templates, isLoading: templatesLoading } = useRouteTemplates();
+  const { technologicalRoute, saveRoute } = useTechnologicalRoute(product?.id || null);
 
   // Отладочный вывод
   console.log('Properties hook result:', { properties, propertiesLoading, isError, error });
@@ -98,6 +104,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     defaultLength: product?.defaultLength ?? undefined,
     defaultWidth: product?.defaultWidth ?? undefined,
     defaultDepth: product?.defaultDepth ?? undefined,
+    routeTemplateId: product?.routeTemplateId ?? undefined,
   });
 
   const [snackbar, setSnackbar] = useState({
@@ -271,6 +278,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           defaultLength: formData.defaultLength,
           defaultWidth: formData.defaultWidth,
           defaultDepth: formData.defaultDepth,
+          routeTemplateId: formData.routeTemplateId === 0 ? null : formData.routeTemplateId,
         };
         console.log('📤 Update payload:', updateData);
         resultProduct = await updateProduct(product.id.toString(), updateData);
@@ -424,6 +432,78 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   inputProps: { min: 0, step: 0.01 }
                 }}
               />
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+              Технологический маршрут
+            </Typography>
+
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2, alignItems: 'flex-start' }}>
+              <FormControl sx={{ flex: 2 }}>
+                <InputLabel>Шаблон маршрута</InputLabel>
+                <Select
+                  value={formData.routeTemplateId || 0}
+                  label="Шаблон маршрута"
+                  onChange={e => handleFieldChange('routeTemplateId', e.target.value === 0 ? undefined : Number(e.target.value))}
+                  disabled={templatesLoading}
+                >
+                  <MenuItem value={0}><em>Без шаблона (индивидуальный или отсутствует)</em></MenuItem>
+                  {templates.map(t => (
+                    <MenuItem key={t.id} value={t.id}>
+                      {t.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {technologicalRoute && (
+                  <Typography variant="caption" color="success.main" sx={{ mt: 0.5 }}>
+                    Установлен индивидуальный маршрут
+                  </Typography>
+                )}
+              </FormControl>
+
+              {product && formData.routeTemplateId && !technologicalRoute && (
+                <Button
+                  variant="outlined"
+                  startIcon={<CopyIcon />}
+                  size="medium"
+                  sx={{ mt: 0.5 }}
+                  onClick={async () => {
+                    const template = templates.find(t => t.id === formData.routeTemplateId);
+                    if (template && window.confirm(`Скопировать все шаги шаблона "${template.name}" в индивидуальный маршрут для "${formData.name}"?`)) {
+                      try {
+                        const routeInput: CreateTechnologicalRouteInput = {
+                          productId: product.id,
+                          name: `Маршрут: ${product.name}`,
+                          description: `Создан на основе шаблона: ${template.name}`,
+                          steps: template.steps.map(s => ({
+                            stepNumber: s.stepNumber,
+                            operationId: s.operationId,
+                            isRequired: s.isRequired,
+                            conditionFormula: s.conditionFormula,
+                            materials: s.materials.map(m => ({
+                              materialId: m.materialId,
+                              consumptionFormula: m.consumptionFormula,
+                              unit: m.unit
+                            }))
+                          }))
+                        };
+                        await saveRoute(routeInput);
+                        setSnackbar({
+                          open: true,
+                          message: 'Маршрут успешно скопирован в индивидуальный!',
+                          severity: 'success'
+                        });
+                      } catch (err) {
+                        console.error('Copy template error:', err);
+                        setSnackbar({ open: true, message: 'Ошибка при копировании маршрута', severity: 'error' });
+                      }
+                    }
+                  }}
+                >
+                  Сделать индивидуальным
+                </Button>
+              )}
             </Box>
 
             <Divider sx={{ my: 2 }} />

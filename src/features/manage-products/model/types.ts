@@ -17,6 +17,7 @@ export interface Product {
   defaultLength: number | null;
   defaultWidth: number | null;
   defaultDepth: number | null;
+  routeTemplateId: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -35,6 +36,7 @@ export interface CreateProductInput {
   defaultLength?: number;
   defaultWidth?: number;
   defaultDepth?: number;
+  routeTemplateId?: number | null;
 }
 
 /**
@@ -49,6 +51,7 @@ export interface UpdateProductInput {
   defaultLength?: number;
   defaultWidth?: number;
   defaultDepth?: number;
+  routeTemplateId?: number | null;
 }
 
 export interface OperationMaterial {
@@ -62,6 +65,7 @@ export interface RouteStep {
   stepNumber: number;
   operationId: number;
   isRequired: boolean;
+  conditionFormula?: string | null;
   materials: OperationMaterial[];
 }
 
@@ -84,6 +88,7 @@ export interface CreateRouteStepInput {
   stepNumber: number;
   operationId: number;
   isRequired: boolean;
+  conditionFormula?: string | null;
   materials?: CreateOperationMaterialInput[];
 }
 

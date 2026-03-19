@@ -18,6 +18,7 @@ import {
     Typography,
     Box,
     Tooltip,
+    alpha,
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import type { Operation } from '../model/types';
@@ -99,6 +100,11 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                                     label={CALCULATION_TYPE_LABELS[operation.calculationType]}
                                     size="small"
                                     variant="outlined"
+                                    sx={{
+                                        fontWeight: 500,
+                                        backgroundColor: (theme) => alpha(theme.palette.divider, 0.05),
+                                        borderColor: (theme) => alpha(theme.palette.divider, 0.3),
+                                    }}
                                 />
                             </TableCell>
                             <TableCell align="right">
@@ -112,6 +118,17 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                                     label={operation.isActive ? 'Активна' : 'Неактивна'}
                                     color={operation.isActive ? 'success' : 'default'}
                                     size="small"
+                                    sx={{
+                                        fontWeight: 600,
+                                        backgroundColor: (theme) =>
+                                            operation.isActive
+                                                ? alpha(theme.palette.success.main, 0.1)
+                                                : alpha(theme.palette.text.disabled, 0.1),
+                                        borderColor: (theme) =>
+                                            operation.isActive
+                                                ? alpha(theme.palette.success.main, 0.4)
+                                                : alpha(theme.palette.divider, 0.4),
+                                    }}
                                 />
                             </TableCell>
                             <TableCell align="center">

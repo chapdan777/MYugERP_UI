@@ -135,7 +135,7 @@ export const DynamicPropertyForm = ({ headerId, values, onChange, productPropert
 
     const handleChange = (property: Property, value: string) => {
         // Используем valuesRef.current вместо values prop для предотвращения race condition
-        let newValues = [...valuesRef.current];
+        const newValues = [...valuesRef.current];
 
         const index = newValues.findIndex(v => v.propertyId === property.id);
 
