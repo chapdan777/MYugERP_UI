@@ -39,8 +39,8 @@ import type { CreateTechnologicalRouteInput } from '../model/types';
 import type { Product, CreateProductInput } from '../model/types';
 import { useCreateProduct, useUpdateProduct, useSetProductProperties, useGetProductProperties } from '../model/product.hooks';
 import { useProperties } from '../../manage-properties/model/property.hooks';
-import { ProductMaterialsDialog } from './ProductMaterialsDialog';
 import { ProductComponentsDialog } from './ProductComponentsDialog';
+import { ProductRouteStepsDialog } from './ProductRouteStepsDialog';
 
 interface ProductFormProps {
   /** Продукт для редактирования (если undefined - создание нового) */
@@ -86,7 +86,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const { getProductProperties } = useGetProductProperties();
   const { properties, isLoading: propertiesLoading, isError, error } = useProperties();
   const { templates, isLoading: templatesLoading } = useRouteTemplates();
-  const { technologicalRoute, saveRoute } = useTechnologicalRoute(product?.id || null);
+  // @ts-ignore - хук updateRoute добавлен локально
+  const { technologicalRoute, saveRoute, updateRoute } = useTechnologicalRoute(product?.id || null);
 
   // Отладочный вывод
   console.log('Properties hook result:', { properties, propertiesLoading, isError, error });
@@ -115,7 +116,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   const [additionalProperties, setAdditionalProperties] = useState<
     Array<{
-      propertyId: string | number;
+      propertyId: number;
       property: any;
       value: string;
       isActive: boolean;
@@ -123,9 +124,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }>
   >([]);
 
-  const [materialsDialogOpen, setMaterialsDialogOpen] = useState(false);
   const [componentsDialogOpen, setComponentsDialogOpen] = useState(false);
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
+  const [routeStepsDialogOpen, setRouteStepsDialogOpen] = useState(false);
 
   // Загрузка дополнительных свойств при монтировании
   useEffect(() => {
@@ -286,9 +287,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         // Save ALL properties (both active and inactive) to persist deletions and state
         const propertiesToSave = additionalProperties
           .map((p, index) => ({
-            propertyId: typeof p.propertyId === 'string'
-              ? parseInt(p.propertyId.replace('prop-', ''))
-              : p.propertyId,
+            propertyId: p.propertyId,
             isRequired: false,
             displayOrder: index,
             defaultValue: p.defaultValue || null,
@@ -310,9 +309,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         // Save ALL properties (both active and inactive) to persist state
         const propertiesToSave = additionalProperties
           .map((p, index) => ({
-            propertyId: typeof p.propertyId === 'string'
-              ? parseInt(p.propertyId.replace('prop-', ''))
-              : p.propertyId,
+            propertyId: p.propertyId,
             isRequired: false,
             displayOrder: index,
             defaultValue: p.defaultValue || null,
@@ -501,9 +498,35 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     }
                   }}
                 >
-                  Сделать индивидуальным
+                  Сделать индивидуальным (скопировать маршрут)
                 </Button>
               )}
+            </Box>
+
+            <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              {(!formData.routeTemplateId || technologicalRoute) && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  onClick={() => setRouteStepsDialogOpen(true)}
+                  disabled={!product}
+                  title={!product ? "Доступно после сохранения изделия" : ""}
+                >
+                  {technologicalRoute ? "Редактировать индивидуальный маршрут" : "Создать индивидуальный маршрут (с нуля)"}
+                </Button>
+              )}
+
+              <Button
+                variant="outlined"
+                color="info"
+                size="small"
+                onClick={() => setComponentsDialogOpen(true)}
+                disabled={!product}
+                title={!product ? "Доступно после сохранения изделия" : ""}
+              >
+                Деталировка (Состав)
+              </Button>
             </Box>
 
             <Divider sx={{ my: 2 }} />
@@ -558,31 +581,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               <>
                 {/* Кнопка добавления свойств - всегда видна при редактировании */}
                 {product && (
-                  <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
+                  <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                     <Button
                       variant="outlined"
                       size="small"
                       onClick={() => setPropertyPickerOpen(true)}
                     >
                       Добавить дополнительные свойства
-                    </Button>
-
-                    <Button
-                      variant="outlined"
-                      color="secondary"
-                      size="small"
-                      onClick={() => setMaterialsDialogOpen(true)}
-                    >
-                      Управление материалами (Формулы)
-                    </Button>
-
-                    <Button
-                      variant="outlined"
-                      color="info"
-                      size="small"
-                      onClick={() => setComponentsDialogOpen(true)}
-                    >
-                      Деталировка (Состав)
                     </Button>
                   </Box>
                 )}
@@ -723,14 +728,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         </CardContent>
       </Card>
 
-      <ProductMaterialsDialog
-        open={materialsDialogOpen}
-        onClose={() => setMaterialsDialogOpen(false)}
-        productId={product ? product.id : 0}
-        productName={product?.name || 'Новый продукт'}
-        properties={additionalProperties.filter(p => p.isActive)}
-      />
-
       {product && (
         <ProductComponentsDialog
           open={componentsDialogOpen}
@@ -738,6 +735,47 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           productId={product.id}
           productName={product.name}
           properties={additionalProperties.filter(p => p.isActive)}
+        />
+      )}
+      
+      {product && (
+        <ProductRouteStepsDialog
+          open={routeStepsDialogOpen}
+          onClose={() => setRouteStepsDialogOpen(false)}
+          productId={product.id}
+          productName={product.name}
+          properties={additionalProperties.filter(p => p.isActive)}
+          routeData={technologicalRoute || null}
+          onSave={async (name, description, steps) => {
+            const inputData = {
+               productId: product.id,
+               name,
+               description,
+               steps
+            };
+            
+            try {
+               if (technologicalRoute?.id) {
+                   // @ts-ignore - хук updateRoute добавлен локально
+                   await updateRoute(technologicalRoute.id, inputData);
+               } else {
+                   await saveRoute(inputData);
+               }
+               
+               setSnackbar({
+                 open: true,
+                 message: 'Маршрут успешно сохранен!',
+                 severity: 'success'
+               });
+            } catch (err: any) {
+               console.error('Error saving route steps:', err);
+               setSnackbar({
+                 open: true,
+                 message: 'Ошибка при сохранении маршрута: ' + (err.response?.data?.message || err.message),
+                 severity: 'error'
+               });
+            }
+          }}
         />
       )}
 

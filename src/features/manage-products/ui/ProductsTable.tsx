@@ -1,9 +1,4 @@
-/**
- * @file Таблица номенклатуры
- * @description Компонент для отображения списка продуктов в виде таблицы
- */
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
   Table,
@@ -18,12 +13,21 @@ import {
   IconButton,
   Tooltip,
   Typography,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  InputAdornment,
+  Button,
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
   ContentCopy as CopyIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { Snackbar, Alert, CircularProgress } from '@mui/material';
 import { useProducts, useCloneProduct } from '../model/product.hooks';
@@ -48,8 +52,14 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
 }) => {
   const { products, isLoading, isError, error } = useProducts();
   const { cloneProduct } = useCloneProduct();
+  
+  // Состояние фильтров
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  
   const [isCloning, setIsCloning] = useState<number | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -57,7 +67,32 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
     severity: 'success',
   });
 
+  // Получаем уникальные категории для фильтра
+  const categories = useMemo(() => {
+    const cats = new Set(products.map(p => p.category));
+    return Array.from(cats).sort();
+  }, [products]);
 
+  // Логика фильтрации
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      // Фильтр по поиску
+      const matchesSearch = 
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.code.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Фильтр по категории
+      const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+      
+      // Фильтр по статусу
+      const matchesStatus = 
+        statusFilter === 'all' || 
+        (statusFilter === 'active' && product.isActive) || 
+        (statusFilter === 'inactive' && !product.isActive);
+      
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+  }, [products, searchQuery, categoryFilter, statusFilter]);
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -65,6 +100,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setCategoryFilter('all');
+    setStatusFilter('all');
     setPage(0);
   };
 
@@ -89,7 +131,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   };
 
   // Обрезаем данные для пагинации
-  const paginatedProducts = products.slice(
+  const paginatedProducts = filteredProducts.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
@@ -97,6 +139,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+        <CircularProgress size={24} sx={{ mr: 2 }} />
         <Typography>Загрузка номенклатуры...</Typography>
       </Box>
     );
@@ -114,6 +157,72 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
 
   return (
     <Box>
+      {/* Панель фильтров */}
+      <Paper sx={{ p: 2, mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TextField
+          label="Поиск"
+          placeholder="Название или артикул..."
+          size="small"
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
+          sx={{ flexGrow: 1, minWidth: '200px' }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" color="action" />
+              </InputAdornment>
+            ),
+            endAdornment: searchQuery && (
+              <InputAdornment position="end">
+                <IconButton size="small" onClick={() => setSearchQuery('')}>
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            )
+          }}
+        />
+        
+        <FormControl size="small" sx={{ minWidth: '150px' }}>
+          <InputLabel id="category-filter-label">Категория</InputLabel>
+          <Select
+            labelId="category-filter-label"
+            value={categoryFilter}
+            label="Категория"
+            onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
+          >
+            <MenuItem value="all">Все категории</MenuItem>
+            {categories.map(cat => (
+              <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: '120px' }}>
+          <InputLabel id="status-filter-label">Статус</InputLabel>
+          <Select
+            labelId="status-filter-label"
+            value={statusFilter}
+            label="Статус"
+            onChange={(e) => { setStatusFilter(e.target.value as any); setPage(0); }}
+          >
+            <MenuItem value="all">Все</MenuItem>
+            <MenuItem value="active">Активен</MenuItem>
+            <MenuItem value="inactive">Неактивен</MenuItem>
+          </Select>
+        </FormControl>
+
+        {(searchQuery || categoryFilter !== 'all' || statusFilter !== 'all') && (
+          <Button 
+            size="small" 
+            startIcon={<ClearIcon />} 
+            onClick={handleClearFilters}
+            color="inherit"
+          >
+            Сбросить
+          </Button>
+        )}
+      </Paper>
+
       <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table sx={{ minWidth: 650 }} aria-label="таблица номенклатуры">
           <TableHead>
@@ -131,8 +240,10 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
             {paginatedProducts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} align="center">
-                  <Typography color="text.secondary">
-                    Нет данных о номенклатуре
+                  <Typography color="text.secondary" sx={{ py: 3 }}>
+                    {products.length === 0 
+                      ? 'Нет данных о номенклатуре' 
+                      : 'Ничего не найдено по заданным фильтрам'}
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -260,7 +371,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
         component="div"
-        count={products.length}
+        count={filteredProducts.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}
@@ -284,3 +395,4 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
     </Box>
   );
 };
+export default ProductsTable;
